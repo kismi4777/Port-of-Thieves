@@ -200,10 +200,15 @@ const advancedSystemInfoDecorator = async (callOriginalFunc, args) => {
       second: '2-digit'
     }).format(now);
 
-    // Проверка портов (macOS)
+    // Проверка портов (Windows/Unix)
     const checkPort = async (port) => {
       try {
-        const { stdout } = await execAsync(`lsof -i :${port}`);
+        const isWindows = process.platform === 'win32';
+        const command = isWindows 
+          ? `powershell -Command "netstat -an | Select-String ':${port}'"`
+          : `lsof -i :${port}`;
+        
+        const { stdout } = await execAsync(command);
         return stdout.trim() ? '🟢 ACTIVE' : '🔴 CLOSED';
       } catch {
         return '🔴 CLOSED';
@@ -218,11 +223,23 @@ const advancedSystemInfoDecorator = async (callOriginalFunc, args) => {
       5000: await checkPort(5000)
     };
 
-    // Процессы Node.js (macOS)
+    // Процессы Node.js (Windows/Unix)
     let nodeProcesses = 0;
     try {
-      const { stdout } = await execAsync('pgrep -f node');
-      nodeProcesses = stdout.split('\n').filter(line => line.trim()).length;
+      const isWindows = process.platform === 'win32';
+      const command = isWindows 
+        ? 'tasklist /FI "IMAGENAME eq node.exe" /FO CSV | find /c "node.exe"'
+        : 'pgrep -f node';
+      
+      const { stdout } = await execAsync(command);
+      
+      if (isWindows) {
+        // Windows: find /c возвращает количество строк
+        nodeProcesses = parseInt(stdout.trim()) || 0;
+      } else {
+        // Unix: pgrep возвращает список PID
+        nodeProcesses = stdout.split('\n').filter(line => line.trim()).length;
+      }
     } catch {
       nodeProcesses = 0;
     }

@@ -118,6 +118,53 @@ namespace UnityBridge
                 case "/api/scene_hierarchy":
                     return ExecuteOnMainThread(() => UnityOperations.GetSceneHierarchy(request));
                     
+                case "/api/add_component":
+                    return ExecuteOnMainThread(() => UnityOperations.AddComponent(request));
+                    
+                case "/api/create_and_add_script":
+                    return ExecuteOnMainThread(() => UnityOperations.CreateAndAddScript(request));
+                    
+                case "/api/create_prefab":
+                    return ExecuteOnMainThread(() => UnityOperations.CreatePrefab(request));
+                    
+                case "/api/instantiate_prefab":
+                    return ExecuteOnMainThread(() => UnityOperations.InstantiatePrefab(request));
+                    
+                case "/api/list_prefabs":
+                    return ExecuteOnMainThread(() => UnityOperations.ListPrefabs(request));
+                    
+                // Canvas Management
+                case "/api/create_canvas":
+                    return ExecuteOnMainThread(() => UnityOperations.CreateCanvas(request));
+                    
+                // UI Elements
+                case "/api/create_ui_element":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.CreateUIElement(request));
+                case "/api/set_ui_properties":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.SetUIProperties(request));
+                case "/api/list_ui_elements":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.ListUIElements(request));
+                    
+                // Advanced Prefab Management
+                case "/api/create_prefab_from_selection":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.CreatePrefabFromSelection(request));
+                case "/api/update_prefab":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.UpdatePrefab(request));
+                    
+                // Advanced Script Management
+                case "/api/create_script_template":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.CreateScriptTemplate(request));
+                case "/api/add_component_to_all":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.AddComponentToAll(request));
+                    
+                // Scene Management
+                case "/api/create_empty_scene":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.CreateEmptyScene(request));
+                case "/api/load_scene":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.LoadScene(request));
+                case "/api/save_scene":
+                    return ExecuteOnMainThread(() => UnityOperationsExtended.SaveScene(request));
+                    
                 default:
                     return OperationResult.Fail($"Unknown endpoint: {request.Endpoint}");
             }

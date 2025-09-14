@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-      "enhanced-mcp": {
+    "enhanced-mcp": {
       "command": "node",
       "args": [
-        "/Users/nikitakolobov/Hunter/Unity3dProjects/TemplateCursor/advanced-mcp/index.js"
+        "Z:/Project/Port of Thieves/advanced-mcp/index.js"
       ],
       "env": {
         "NODE_ENV": "production"

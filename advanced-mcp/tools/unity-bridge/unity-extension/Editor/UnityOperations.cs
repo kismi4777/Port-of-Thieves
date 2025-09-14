@@ -482,6 +482,195 @@ public class DynamicCodeExecutor
             }
         }
         
+        public static OperationResult AddComponent(UnityRequest request)
+        {
+            try
+            {
+                var objectName = request.GetValue<string>("object_name");
+                var scriptName = request.GetValue<string>("script_name");
+                
+                if (string.IsNullOrEmpty(objectName))
+                    return OperationResult.Fail("object_name parameter is required");
+                    
+                if (string.IsNullOrEmpty(scriptName))
+                    return OperationResult.Fail("script_name parameter is required");
+                
+                // Найти объект в сцене
+                var gameObject = GameObject.Find(objectName);
+                if (gameObject == null)
+                    return OperationResult.Fail($"GameObject '{objectName}' not found in scene");
+                
+                // Найти скрипт по имени
+                var scriptType = FindScriptTypeByName(scriptName);
+                if (scriptType == null)
+                    return OperationResult.Fail($"Script '{scriptName}' not found. Make sure it's compiled and accessible");
+                
+                // Проверить, есть ли уже такой компонент
+                if (gameObject.GetComponent(scriptType) != null)
+                    return OperationResult.Fail($"Component '{scriptName}' already exists on '{objectName}'");
+                
+                // Добавить компонент
+                var component = gameObject.AddComponent(scriptType);
+                
+                // Отметить сцену как измененную
+                UnityEditor.EditorUtility.SetDirty(gameObject);
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+                
+                var message = $"Successfully added '{scriptName}' component to '{objectName}'";
+                return OperationResult.Ok(message, $"Component added: {component.GetType().Name}");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"Add component failed: {ex.Message}");
+            }
+        }
+        
+        private static System.Type FindScriptTypeByName(string scriptName)
+        {
+            try
+            {
+                // Искать во всех загруженных ассемблиях
+                var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+                
+                foreach (var assembly in assemblies)
+                {
+                    try
+                    {
+                        var types = assembly.GetTypes();
+                        foreach (var type in types)
+                        {
+                            if (type.Name.Equals(scriptName, StringComparison.OrdinalIgnoreCase) ||
+                                type.FullName.Equals(scriptName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Проверить, что это MonoBehaviour
+                                if (typeof(MonoBehaviour).IsAssignableFrom(type))
+                                {
+                                    return type;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Игнорировать ошибки доступа к типам
+                        continue;
+                    }
+                }
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Error finding script type: {ex.Message}");
+                return null;
+            }
+        }
+        
+        public static OperationResult CreateAndAddScript(UnityRequest request)
+        {
+            try
+            {
+                var scriptName = request.GetValue<string>("script_name");
+                var scriptContent = request.GetValue<string>("script_content");
+                var objectName = request.GetValue<string>("object_name");
+                
+                if (string.IsNullOrEmpty(scriptName))
+                    return OperationResult.Fail("script_name parameter is required");
+                    
+                if (string.IsNullOrEmpty(scriptContent))
+                    return OperationResult.Fail("script_content parameter is required");
+                    
+                if (string.IsNullOrEmpty(objectName))
+                    return OperationResult.Fail("object_name parameter is required");
+                
+                // Найти объект в сцене
+                var gameObject = GameObject.Find(objectName);
+                if (gameObject == null)
+                    return OperationResult.Fail($"GameObject '{objectName}' not found in scene");
+                
+                // Создать скрипт
+                var scriptPath = CreateScriptAsset(scriptName, scriptContent);
+                if (string.IsNullOrEmpty(scriptPath))
+                    return OperationResult.Fail("Failed to create script asset");
+                
+                // Подождать компиляции
+                UnityEditor.AssetDatabase.Refresh();
+                UnityEditor.AssetDatabase.SaveAssets();
+                
+                // Найти созданный тип скрипта
+                var scriptType = FindScriptTypeByName(scriptName);
+                if (scriptType == null)
+                    return OperationResult.Fail($"Script '{scriptName}' was created but could not be found. Please wait for compilation to complete.");
+                
+                // Проверить, есть ли уже такой компонент
+                if (gameObject.GetComponent(scriptType) != null)
+                    return OperationResult.Fail($"Component '{scriptName}' already exists on '{objectName}'");
+                
+                // Добавить компонент
+                var component = gameObject.AddComponent(scriptType);
+                
+                // Отметить сцену как измененную
+                UnityEditor.EditorUtility.SetDirty(gameObject);
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+                
+                var message = $"Successfully created script '{scriptName}' and added it to '{objectName}'";
+                return OperationResult.Ok(message, $"Script created at: {scriptPath}\nComponent added: {component.GetType().Name}");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"Create and add script failed: {ex.Message}");
+            }
+        }
+        
+        private static string CreateScriptAsset(string scriptName, string scriptContent)
+        {
+            try
+            {
+                // Определить папку для скриптов
+                var scriptsFolder = "Assets/Scripts";
+                if (!UnityEditor.AssetDatabase.IsValidFolder(scriptsFolder))
+                {
+                    UnityEditor.AssetDatabase.CreateFolder("Assets", "Scripts");
+                }
+                
+                // Создать полный путь к файлу
+                var scriptPath = $"{scriptsFolder}/{scriptName}.cs";
+                
+                // Проверить, не существует ли уже файл
+                if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(scriptPath) != null)
+                {
+                    // Если файл существует, добавить номер
+                    var counter = 1;
+                    while (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(scriptPath) != null)
+                    {
+                        scriptPath = $"{scriptsFolder}/{scriptName}_{counter}.cs";
+                        counter++;
+                    }
+                }
+                
+                // Создать содержимое файла
+                var fullScriptContent = $@"using UnityEngine;
+
+public class {scriptName} : MonoBehaviour
+{{
+{scriptContent}
+}}";
+                
+                // Записать файл
+                System.IO.File.WriteAllText(scriptPath, fullScriptContent);
+                
+                // Обновить AssetDatabase
+                UnityEditor.AssetDatabase.Refresh();
+                
+                return scriptPath;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Error creating script asset: {ex.Message}");
+                return null;
+            }
+        }
+        
         private static string FormatSceneHierarchy(UnityEngine.SceneManagement.Scene scene, GameObject[] rootObjects, bool detailed)
         {
             var sb = new System.Text.StringBuilder();
@@ -897,6 +1086,173 @@ public class DynamicCodeExecutor
             var offset = new Vector3(1f, 1.5f, 1f).normalized * distance;
             
             return center + offset;
+        }
+        
+        public static OperationResult CreatePrefab(UnityRequest request)
+        {
+            try
+            {
+                var objectName = request.GetValue<string>("object_name");
+                var prefabPath = request.GetValue<string>("prefab_path");
+                
+                if (string.IsNullOrEmpty(objectName))
+                    return OperationResult.Fail("object_name parameter is required");
+                    
+                if (string.IsNullOrEmpty(prefabPath))
+                    return OperationResult.Fail("prefab_path parameter is required");
+                
+                // Найти объект на сцене
+                var gameObject = GameObject.Find(objectName);
+                if (gameObject == null)
+                    return OperationResult.Fail($"GameObject '{objectName}' not found in scene");
+                
+                // Создать папку для префаба если её нет
+                var directory = System.IO.Path.GetDirectoryName(prefabPath);
+                if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
+                {
+                    System.IO.Directory.CreateDirectory(directory);
+                }
+                
+                // Создать префаб
+                var prefab = UnityEditor.PrefabUtility.SaveAsPrefabAsset(gameObject, prefabPath);
+                if (prefab == null)
+                    return OperationResult.Fail("Failed to create prefab");
+                
+                // Обновить AssetDatabase
+                UnityEditor.AssetDatabase.Refresh();
+                UnityEditor.AssetDatabase.SaveAssets();
+                
+                var message = $"Successfully created prefab from '{objectName}'";
+                return OperationResult.Ok(message, $"Prefab created at: {prefabPath}");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"Create prefab failed: {ex.Message}");
+            }
+        }
+        
+        public static OperationResult InstantiatePrefab(UnityRequest request)
+        {
+            try
+            {
+                var prefabPath = request.GetValue<string>("prefab_path");
+                var position = request.GetValue("position", Vector3.zero);
+                var rotation = request.GetValue("rotation", Vector3.zero);
+                var scale = request.GetValue("scale", Vector3.one);
+                
+                if (string.IsNullOrEmpty(prefabPath))
+                    return OperationResult.Fail("prefab_path parameter is required");
+                
+                // Загрузить префаб
+                var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (prefab == null)
+                    return OperationResult.Fail($"Prefab not found at path: {prefabPath}");
+                
+                // Создать экземпляр префаба
+                var instance = UnityEditor.PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+                if (instance == null)
+                    return OperationResult.Fail("Failed to instantiate prefab");
+                
+                // Установить позицию, поворот и масштаб
+                instance.transform.position = position;
+                instance.transform.eulerAngles = rotation;
+                instance.transform.localScale = scale;
+                
+                // Отметить сцену как измененную
+                UnityEditor.EditorUtility.SetDirty(instance);
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
+                    UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+                
+                var message = $"Successfully instantiated prefab '{prefab.name}'";
+                return OperationResult.Ok(message, $"Instance created: {instance.name}");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"Instantiate prefab failed: {ex.Message}");
+            }
+        }
+        
+        public static OperationResult ListPrefabs(UnityRequest request)
+        {
+            try
+            {
+                var searchPath = request.GetValue("search_path", "Assets");
+                
+                // Найти все .prefab файлы
+                var prefabPaths = new List<string>();
+                var guids = UnityEditor.AssetDatabase.FindAssets("t:Prefab", new[] { searchPath });
+                
+                foreach (var guid in guids)
+                {
+                    var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        prefabPaths.Add(path);
+                    }
+                }
+                
+                var message = $"Found {prefabPaths.Count} prefabs in {searchPath}";
+                return OperationResult.Ok(message, prefabPaths);
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"List prefabs failed: {ex.Message}");
+            }
+        }
+
+        // ===== CANVAS MANAGEMENT =====
+        
+        public static OperationResult CreateCanvas(UnityRequest request)
+        {
+            try
+            {
+                var canvasName = request.GetValue("canvas_name", "New Canvas");
+                var renderMode = request.GetValue("render_mode", "ScreenSpaceOverlay");
+                var sortingOrder = request.GetValue("sorting_order", 0);
+                
+                // Создать Canvas
+                var canvasObj = new GameObject(canvasName);
+                var canvas = canvasObj.AddComponent<Canvas>();
+                var canvasScaler = canvasObj.AddComponent<UnityEngine.UI.CanvasScaler>();
+                var graphicRaycaster = canvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+                
+                // Настройка Canvas
+                canvas.renderMode = ParseRenderMode(renderMode);
+                canvas.sortingOrder = sortingOrder;
+                
+                // Настройка CanvasScaler
+                canvasScaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                canvasScaler.referenceResolution = new Vector2(1920, 1080);
+                canvasScaler.screenMatchMode = UnityEngine.UI.CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                canvasScaler.matchWidthOrHeight = 0.5f;
+                
+                // Отметить сцену как измененную
+                UnityEditor.EditorUtility.SetDirty(canvasObj);
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
+                    UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+                
+                var message = $"Successfully created Canvas '{canvasName}'";
+                return OperationResult.Ok(message, $"Canvas created: {canvasObj.name}, RenderMode: {canvas.renderMode}");
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.Fail($"Create Canvas failed: {ex.Message}");
+            }
+        }
+        
+        private static RenderMode ParseRenderMode(string renderMode)
+        {
+            switch (renderMode.ToLower())
+            {
+                case "screenspaceoverlay":
+                    return RenderMode.ScreenSpaceOverlay;
+                case "screenspacecamera":
+                    return RenderMode.ScreenSpaceCamera;
+                case "worldspace":
+                    return RenderMode.WorldSpace;
+                default:
+                    return RenderMode.ScreenSpaceOverlay;
+            }
         }
     }
 }

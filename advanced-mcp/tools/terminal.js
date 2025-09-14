@@ -16,6 +16,9 @@ import { execAsync, spawnAsync, spawnWithOutput, spawnBackground } from '../util
 import { logInfo, logError, extractErrorDetails } from '../utils/logger.js';
 import { getWorkspaceRoot, resolveWorkspacePath } from '../utils/workspaceUtils.js';
 
+// 💻 Определяем ОС для Windows совместимости
+const isWindows = process.platform === 'win32';
+
 // 💻 ЭКСПОРТ ВСЕХ TERMINAL КОМАНД
 export const terminalTools = [
   {
@@ -78,10 +81,14 @@ export const terminalTools = [
           second: '2-digit'
         }).format(now);
 
-        // Проверка портов (macOS)
+        // Проверка портов (Windows/Unix)
         const checkPort = async (port) => {
           try {
-            const { stdout } = await execAsync(`lsof -i :${port}`);
+            const command = isWindows 
+              ? `powershell -Command "netstat -an | Select-String ':${port}'"`
+              : `lsof -i :${port}`;
+            
+            const { stdout } = await execAsync(command);
             return stdout.trim() ? '🟢 ACTIVE' : '🔴 CLOSED';
           } catch {
             return '🔴 CLOSED';
@@ -96,11 +103,22 @@ export const terminalTools = [
           5000: await checkPort(5000)
         };
 
-        // Процессы Node.js (macOS)
+        // Процессы Node.js (Windows/Unix)
         let nodeProcesses = 0;
         try {
-          const { stdout } = await execAsync('pgrep -f node');
-          nodeProcesses = stdout.split('\n').filter(line => line.trim()).length;
+          const command = isWindows 
+            ? 'tasklist /FI "IMAGENAME eq node.exe" /FO CSV | find /c "node.exe"'
+            : 'pgrep -f node';
+          
+          const { stdout } = await execAsync(command);
+          
+          if (isWindows) {
+            // Windows: find /c возвращает количество строк
+            nodeProcesses = parseInt(stdout.trim()) || 0;
+          } else {
+            // Unix: pgrep возвращает список PID
+            nodeProcesses = stdout.split('\n').filter(line => line.trim()).length;
+          }
         } catch {
           nodeProcesses = 0;
         }
@@ -117,16 +135,31 @@ export const terminalTools = [
 
         if (include_processes && nodeProcesses > 0) {
           try {
-            const { stdout } = await execAsync('ps aux | grep -i node | grep -v grep');
-            const processes = stdout.split('\n')
-              .filter(line => line.trim())
-              .slice(0, max_processes)
-              .map(line => {
-                const parts = line.trim().split(/\s+/);
-                return `  • PID ${parts[1]}: ${Math.round(parseFloat(parts[5]) / 1024)}MB (${parts[3]}% CPU)`;
+            const command = isWindows 
+              ? 'tasklist /FI "IMAGENAME eq node.exe" /FO CSV'
+              : 'ps aux | grep -i node | grep -v grep';
+            
+            const { stdout } = await execAsync(command);
+            
+            if (isWindows) {
+              // Windows: tasklist CSV format
+              const lines = stdout.split('\n').filter(line => line.trim() && line.includes('node.exe'));
+              const processes = lines.slice(0, max_processes).map(line => {
+                const parts = line.split(',').map(p => p.replace(/"/g, '').trim());
+                return `  • ${parts[0]}: ${parts[4]} (${parts[5]})`;
               });
-
-            systemInfo += `📋 **Node.js Processes:**\n${processes.join('\n')}\n\n`;
+              systemInfo += `📋 **Node.js Processes:**\n${processes.join('\n')}\n\n`;
+            } else {
+              // Unix: ps aux format
+              const processes = stdout.split('\n')
+                .filter(line => line.trim())
+                .slice(0, max_processes)
+                .map(line => {
+                  const parts = line.trim().split(/\s+/);
+                  return `  • PID ${parts[1]}: ${Math.round(parseFloat(parts[5]) / 1024)}MB (${parts[3]}% CPU)`;
+                });
+              systemInfo += `📋 **Node.js Processes:**\n${processes.join('\n')}\n\n`;
+            }
           } catch (error) {
             systemInfo += `❌ **Process List Error:** ${error.message}\n\n`;
           }
@@ -160,12 +193,17 @@ export const terminalTools = [
       const { port, protocol = "tcp" } = args;
 
       try {
-        const { stdout } = await execAsync(`lsof -i :${port}`);
+        const command = isWindows 
+          ? `powershell -Command "netstat -an | Select-String ':${port}'"`
+          : `lsof -i :${port}`;
+        
+        const { stdout } = await execAsync(command);
         const isActive = stdout.trim() ? true : false;
 
         return `🔍 **PORT CHECK FROM TERMINAL TOOLS** 🔍\n\n` +
           `🌐 **Port:** ${port}\n` +
           `📡 **Protocol:** ${protocol.toUpperCase()}\n` +
+          `💻 **OS:** ${isWindows ? 'Windows' : 'Unix/Linux'}\n` +
           `📊 **Status:** ${isActive ? '🟢 ACTIVE' : '🔴 CLOSED'}\n\n` +
           (isActive ? `📝 **Details:**\n\`\`\`\n${stdout.trim()}\n\`\`\`` : '💤 Port is not in use') +
           `\n\n💻 **Checked by Terminal Tools!**`;
@@ -197,7 +235,11 @@ export const terminalTools = [
       const { name } = args;
 
       try {
-        const { stdout } = await execAsync(`ps aux | grep -i "${name}" | grep -v grep`);
+        const command = isWindows 
+          ? `tasklist /FI "IMAGENAME eq ${name}*" /FO CSV`
+          : `ps aux | grep -i "${name}" | grep -v grep`;
+        
+        const { stdout } = await execAsync(command);
         const result = stdout.trim();
 
         if (result) {
@@ -238,7 +280,7 @@ export const terminalTools = [
       const { url, method = "GET", data } = args;
 
       try {
-        let cmd = `curl -s "${url}"`;
+        let cmd = isWindows ? `curl.exe -s "${url}"` : `curl -s "${url}"`;
 
         if (method !== 'GET') {
           cmd += ` -X ${method}`;
