@@ -15,11 +15,16 @@ public class CursorTagDetector : MonoBehaviour
     public Vector2 zoneSize = new Vector2(10f, 10f); // Размер зоны
     public Color zoneColor = Color.green; // Цвет зоны (для отладки)
     
+    [Header("Scale Effect")]
+    public bool useScaleEffect = true; // Включить эффект масштаба
+    public float scaleMultiplier = 1.2f; // Множитель масштаба (1.2 = +20%)
+    
     private Camera mainCamera;
     private Mouse mouse;
     private bool isDragging = false;
     private Transform draggedObject = null;
     private Vector3 originalPosition; // Исходная позиция объекта
+    private Vector3 originalScale; // Исходный масштаб объекта
     
     void Start()
     {
@@ -93,8 +98,16 @@ public class CursorTagDetector : MonoBehaviour
                 {
                     isDragging = true;
                     draggedObject = colliders[0].transform;
-                    // Запоминаем исходную позицию объекта
+                    // Запоминаем исходную позицию и масштаб объекта
                     originalPosition = draggedObject.position;
+                    originalScale = draggedObject.localScale;
+                    
+                    // Увеличиваем масштаб при взятии объекта
+                    if (useScaleEffect)
+                    {
+                        draggedObject.localScale = originalScale * scaleMultiplier;
+                    }
+                    
                     Debug.Log($"Started dragging: {draggedObject.name} from {originalPosition}");
                 }
             }
@@ -105,6 +118,12 @@ public class CursorTagDetector : MonoBehaviour
         {
             if (isDragging)
             {
+                // Восстанавливаем исходный масштаб
+                if (useScaleEffect)
+                {
+                    draggedObject.localScale = originalScale;
+                }
+                
                 // Проверяем, можно ли отпустить объект в этой позиции
                 if (CanDropAtPosition(worldPosition))
                 {

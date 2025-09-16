@@ -962,6 +962,8 @@ MonoBehaviour:
   zoneCenter: {x: -2.91, y: 0}
   zoneSize: {x: 13.7, y: 8.38}
   zoneColor: {r: 0, g: 1, b: 0, a: 1}
+  useScaleEffect: 1
+  scaleMultiplier: 1.2
 --- !u!4 &1117756695
 Transform:
   m_ObjectHideFlags: 0
