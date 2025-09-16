@@ -64,9 +64,15 @@ namespace UnityBridge
                 
                 if (listenerThread?.IsAlive == true)
                 {
-                    listenerThread.Join(1000);
+                    // Используем более безопасный способ остановки потока
+                    // Вместо Thread.Abort() используем CancellationToken
+                    listenerThread.Join(2000); // Увеличиваем время ожидания
+                    
+                    // Если поток все еще жив, просто логируем предупреждение
                     if (listenerThread.IsAlive)
-                        listenerThread.Abort();
+                    {
+                        Debug.LogWarning("HTTP listener thread did not stop gracefully, but server is stopped");
+                    }
                 }
                 
                 Debug.Log("HTTP Server stopped");
@@ -86,10 +92,21 @@ namespace UnityBridge
                     var context = listener.GetContext();
                     ThreadPool.QueueUserWorkItem(_ => ProcessRequest(context));
                 }
-                catch (HttpListenerException)
+                catch (HttpListenerException ex)
                 {
-                    // Сервер останавливается
-                    if (!isRunning) return;
+                    // Сервер останавливается - это нормально
+                    if (!isRunning) 
+                    {
+                        Debug.Log("HTTP listener stopped gracefully");
+                        return;
+                    }
+                    Debug.LogWarning($"HTTP listener exception: {ex.Message}");
+                }
+                catch (ThreadAbortException)
+                {
+                    // Поток был прерван - это нормально при остановке
+                    Debug.Log("HTTP listener thread was aborted");
+                    return;
                 }
                 catch (Exception ex)
                 {

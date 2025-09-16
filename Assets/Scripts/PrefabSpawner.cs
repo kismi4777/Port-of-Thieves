@@ -24,7 +24,8 @@ public class PrefabSpawner : MonoBehaviour
     public enum SpawnPointMode
     {
         Random,     // Случайный спавн поинт
-        Sequential  // По порядку
+        Sequential, // По порядку
+        AllPoints   // На всех точках одновременно
     }
     
     private List<GameObject> spawnedObjects = new List<GameObject>();
@@ -69,6 +70,13 @@ public class PrefabSpawner : MonoBehaviour
             return;
         }
         
+        // Если режим AllPoints, спавним на всех точках
+        if (spawnPointMode == SpawnPointMode.AllPoints)
+        {
+            SpawnAllPrefabs();
+            return;
+        }
+        
         GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
@@ -76,6 +84,36 @@ public class PrefabSpawner : MonoBehaviour
         spawnedObjects.Add(spawnedObject);
         
         Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPosition);
+    }
+    
+    public void SpawnAllPrefabs()
+    {
+        if (prefabsToSpawn == null || prefabsToSpawn.Length == 0)
+        {
+            Debug.LogWarning("Нет префабов для спавна!");
+            return;
+        }
+        
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning("Нет точек спавна!");
+            return;
+        }
+        
+        // Спавним префаб на каждой точке спавна
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            if (spawnPoints[i] != null)
+            {
+                GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
+                GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPoints[i].position, Quaternion.identity);
+                spawnedObjects.Add(spawnedObject);
+                
+                Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position);
+            }
+        }
+        
+        Debug.Log("Заспавнено " + spawnPoints.Length + " объектов на всех точках");
     }
     
     Vector3 GetSpawnPosition()
@@ -124,10 +162,46 @@ public class PrefabSpawner : MonoBehaviour
             return;
         }
         
+        // Если режим AllPoints, спавним конкретный префаб на всех точках
+        if (spawnPointMode == SpawnPointMode.AllPoints)
+        {
+            SpawnSpecificPrefabOnAllPoints(prefabIndex);
+            return;
+        }
+        
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPosition, Quaternion.identity);
         
         spawnedObjects.Add(spawnedObject);
+    }
+    
+    public void SpawnSpecificPrefabOnAllPoints(int prefabIndex)
+    {
+        if (prefabsToSpawn == null || prefabIndex < 0 || prefabIndex >= prefabsToSpawn.Length)
+        {
+            Debug.LogWarning("Неверный индекс префаба!");
+            return;
+        }
+        
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning("Нет точек спавна!");
+            return;
+        }
+        
+        // Спавним конкретный префаб на каждой точке спавна
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            if (spawnPoints[i] != null)
+            {
+                GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPoints[i].position, Quaternion.identity);
+                spawnedObjects.Add(spawnedObject);
+                
+                Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position);
+            }
+        }
+        
+        Debug.Log("Заспавнено " + spawnPoints.Length + " объектов типа " + prefabsToSpawn[prefabIndex].name + " на всех точках");
     }
     
     public void ClearAllSpawnedObjects()
