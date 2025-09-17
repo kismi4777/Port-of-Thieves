@@ -964,6 +964,13 @@ MonoBehaviour:
   zoneColor: {r: 0, g: 1, b: 0, a: 1}
   useScaleEffect: 1
   scaleMultiplier: 1.2
+  useSoundEffects: 1
+  pickupSound: {fileID: 8300000, guid: f0070227df9bab043b26419f5e02bf39, type: 3}
+  dropSound: {fileID: 8300000, guid: a25ad2a61fce5c14faa15eba9f0b54b7, type: 3}
+  soundVolume: 0.025
+  useParticleEffects: 1
+  dropParticlePrefab: {fileID: 8014483469092822653, guid: 89d07ba3951d93347abfac1a1ac405b4, type: 3}
+  particleDuration: 0.5
 --- !u!4 &1117756695
 Transform:
   m_ObjectHideFlags: 0
@@ -1254,7 +1261,8 @@ PrefabInstance:
         \u0413\u0440\u043E\u0433\u0430"
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 3730387774357907535, guid: 3e52913fc5556274a9d7c702effd5ed1, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3e52913fc5556274a9d7c702effd5ed1, type: 3}
