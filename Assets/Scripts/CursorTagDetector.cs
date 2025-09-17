@@ -9,11 +9,15 @@ public class CursorTagDetector : MonoBehaviour
     [Header("Drag Settings")]
     public string draggableTag = "Draggable"; // Тег объектов, которые можно перетаскивать
     
-    [Header("Drop Zone")]
-    public bool useDropZone = true; // Включить зону для отпускания
-    public Vector2 zoneCenter = Vector2.zero; // Центр зоны
-    public Vector2 zoneSize = new Vector2(10f, 10f); // Размер зоны
-    public Color zoneColor = Color.green; // Цвет зоны (для отладки)
+    [Header("Drop Zones")]
+    public bool useDropZone = true; // Включить зоны для отпускания
+    public Vector2 zone1Center = Vector2.zero; // Центр первой зоны
+    public Vector2 zone1Size = new Vector2(10f, 10f); // Размер первой зоны
+    public Color zone1Color = Color.green; // Цвет первой зоны (для отладки)
+    
+    public Vector2 zone2Center = new Vector2(5f, 5f); // Центр второй зоны
+    public Vector2 zone2Size = new Vector2(8f, 8f); // Размер второй зоны
+    public Color zone2Color = Color.blue; // Цвет второй зоны (для отладки)
     
     [Header("Scale Effect")]
     public bool useScaleEffect = true; // Включить эффект масштаба
@@ -241,6 +245,26 @@ public class CursorTagDetector : MonoBehaviour
             return false;
         }
         
+        // Проверяем первую дроп зону
+        if (IsPositionInZone(position, zone1Center, zone1Size))
+        {
+            Debug.Log("Объект помещен в первую дроп зону");
+            return true;
+        }
+        
+        // Проверяем вторую дроп зону
+        if (IsPositionInZone(position, zone2Center, zone2Size))
+        {
+            Debug.Log("Объект помещен во вторую дроп зону");
+            return true;
+        }
+        
+        return false; // Позиция не входит ни в одну из дроп зон
+    }
+    
+    // Проверяет, находится ли позиция в указанной зоне
+    private bool IsPositionInZone(Vector3 position, Vector2 zoneCenter, Vector2 zoneSize)
+    {
         float minX = zoneCenter.x - zoneSize.x / 2f;
         float maxX = zoneCenter.x + zoneSize.x / 2f;
         float minY = zoneCenter.y - zoneSize.y / 2f;
@@ -346,17 +370,26 @@ public class CursorTagDetector : MonoBehaviour
         }
     }
     
-    // Визуализация зоны в Scene View (только в редакторе)
+    // Визуализация зон в Scene View (только в редакторе)
     void OnDrawGizmos()
     {
         if (useDropZone)
         {
-            Gizmos.color = zoneColor;
-            Gizmos.DrawWireCube(new Vector3(zoneCenter.x, zoneCenter.y, 0), new Vector3(zoneSize.x, zoneSize.y, 0));
+            // Рисуем первую дроп зону
+            Gizmos.color = zone1Color;
+            Gizmos.DrawWireCube(new Vector3(zone1Center.x, zone1Center.y, 0), new Vector3(zone1Size.x, zone1Size.y, 0));
             
-            // Показываем центр зоны
+            // Показываем центр первой зоны
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(new Vector3(zoneCenter.x, zoneCenter.y, 0), 0.2f);
+            Gizmos.DrawWireSphere(new Vector3(zone1Center.x, zone1Center.y, 0), 0.2f);
+            
+            // Рисуем вторую дроп зону
+            Gizmos.color = zone2Color;
+            Gizmos.DrawWireCube(new Vector3(zone2Center.x, zone2Center.y, 0), new Vector3(zone2Size.x, zone2Size.y, 0));
+            
+            // Показываем центр второй зоны
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(new Vector3(zone2Center.x, zone2Center.y, 0), 0.2f);
         }
         
         // Показываем точки спавна как запрещенные зоны

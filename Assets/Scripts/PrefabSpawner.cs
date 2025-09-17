@@ -24,8 +24,6 @@ public class PrefabSpawner : MonoBehaviour
     public bool preventCleanupOnDragging = true;
     public bool preventCleanupInDropZone = true;
     
-    [Header("Управление спавн поинтами")]
-    [SerializeField] private bool showSpawnPointControls = true;
     
     [Header("Drop Zone Integration")]
     public CursorTagDetector cursorDetector; // Ссылка на CursorTagDetector для проверки drop zone

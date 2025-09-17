@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - Obj
+  - Draggable
   layers:
   - Default
   - TransparentFX

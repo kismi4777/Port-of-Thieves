@@ -464,8 +464,8 @@ Transform:
   m_GameObject: {fileID: 265446381}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.24751234, y: -0.31696293, z: 0}
-  m_LocalScale: {x: 1.352575, y: 1.5848941, z: 1}
+  m_LocalPosition: {x: -0.24751234, y: -0.0018, z: 0}
+  m_LocalScale: {x: 1.352575, y: 1.5763255, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 70104230}
@@ -551,8 +551,8 @@ Transform:
   m_GameObject: {fileID: 419193181}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -14.077038, y: -0.12761517, z: 0}
-  m_LocalScale: {x: 1.3223985, y: 1.4876765, z: 1}
+  m_LocalPosition: {x: -14.077038, y: 0.0019, z: 0}
+  m_LocalScale: {x: 1.3223985, y: 1.4988033, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 70104230}
@@ -910,10 +910,9 @@ MonoBehaviour:
   spawnInterval: 10
   autoCleanup: 1
   objectLifetime: 5
-  randomLifetime: 0
-  minLifetime: 5
-  maxLifetime: 15
-  showSpawnPointControls: 1
+  preventCleanupOnDragging: 1
+  preventCleanupInDropZone: 1
+  cursorDetector: {fileID: 1117756694}
 --- !u!4 &1045342280
 Transform:
   m_ObjectHideFlags: 0
@@ -964,9 +963,12 @@ MonoBehaviour:
   currentTag: None
   draggableTag: Obj
   useDropZone: 1
-  zoneCenter: {x: -2.91, y: 0}
-  zoneSize: {x: 13.7, y: 8.38}
-  zoneColor: {r: 0, g: 1, b: 0, a: 1}
+  zone1Center: {x: -2.95, y: 0.03}
+  zone1Size: {x: 13.7, y: 8.34}
+  zone1Color: {r: 0, g: 1, b: 0, a: 1}
+  zone2Center: {x: -7.62, y: 5.67}
+  zone2Size: {x: 5.91, y: 2.71}
+  zone2Color: {r: 0, g: 0, b: 1, a: 1}
   useScaleEffect: 1
   scaleMultiplier: 1.2
   useSoundEffects: 1
@@ -1207,8 +1209,8 @@ Transform:
   m_GameObject: {fileID: 1747902447}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.06628088, y: -4.5569253, z: 0}
-  m_LocalScale: {x: 0.6182864, y: 0.9164331, z: 1}
+  m_LocalPosition: {x: -0.06628088, y: -4.3924, z: 0}
+  m_LocalScale: {x: 0.6182864, y: 0.8727192, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 70104230}
@@ -1265,6 +1267,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: "\u0421\u0430\u0431\u043B\u044F \u041A\u0430\u043F\u0438\u0442\u0430\u043D\u0430
         \u0413\u0440\u043E\u0433\u0430"
+      objectReference: {fileID: 0}
+    - target: {fileID: 7332187962716935038, guid: 3e52913fc5556274a9d7c702effd5ed1, type: 3}
+      propertyPath: m_TagString
+      value: Obj
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
