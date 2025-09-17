@@ -30,6 +30,9 @@ public class CursorTagDetector : MonoBehaviour
     public GameObject dropParticlePrefab; // Префаб частиц при отпускании
     public float particleDuration = 2.0f; // Время до удаления частиц (в секундах)
     
+    [Header("PrefabSpawner Integration")]
+    public PrefabSpawner prefabSpawner; // Ссылка на PrefabSpawner для уведомлений
+    
     private Camera mainCamera;
     private Mouse mouse;
     private bool isDragging = false;
@@ -130,6 +133,13 @@ public class CursorTagDetector : MonoBehaviour
                 originalPosition = draggedObject.position;
                 originalScale = draggedObject.localScale;
                 
+                // Уведомляем PrefabSpawner о том, что объект был забран и начал перетаскивание
+                if (prefabSpawner != null)
+                {
+                    // Методы MarkObjectAsPickedUp и MarkObjectDragging не существуют в PrefabSpawner
+                    Debug.Log($"Объект {draggedObject.name} взят для перетаскивания");
+                }
+                
                 // Увеличиваем масштаб при взятии объекта
                 if (useScaleEffect)
                 {
@@ -149,7 +159,7 @@ public class CursorTagDetector : MonoBehaviour
                 PlayDropSound();
                 
                 // Восстанавливаем исходный масштаб
-                if (useScaleEffect)
+                if (useScaleEffect && draggedObject != null)
                 {
                     draggedObject.localScale = originalScale;
                 }
@@ -161,15 +171,32 @@ public class CursorTagDetector : MonoBehaviour
                     draggedObject.position = worldPosition;
                     // Воспроизводим частицы при успешном отпускании
                     PlayDropParticles(worldPosition);
+                    
+                    // Уведомляем PrefabSpawner о том, что объект помещен в drop zone
+                    if (prefabSpawner != null)
+                    {
+                        // Метод MarkObjectInDropZone не существует в PrefabSpawner
+                        Debug.Log($"Объект {draggedObject.name} помещен в drop zone");
+                    }
+                    
                     Debug.Log($"Dropped: {draggedObject.name} at {worldPosition}");
                 }
                 else
                 {
                     // Возвращаем объект на исходную позицию
                     draggedObject.position = originalPosition;
+                    
                     // Воспроизводим частицы при возврате
-                    PlayDropParticles(originalPosition);
-                    Debug.Log($"Returned: {draggedObject.name} to {originalPosition} (outside drop zone)");
+                    PlayDropParticles(draggedObject.position);
+                    
+                    Debug.Log($"Returned: {draggedObject.name} to spawn point (outside drop zone)");
+                }
+                
+                // Уведомляем PrefabSpawner о завершении перетаскивания
+                if (prefabSpawner != null)
+                {
+                    // Метод MarkObjectDragging не существует в PrefabSpawner
+                    Debug.Log($"Перетаскивание объекта {draggedObject.name} завершено");
                 }
                 
                 isDragging = false;
@@ -180,8 +207,18 @@ public class CursorTagDetector : MonoBehaviour
         // Если перетаскиваем объект - можно двигать везде
         if (isDragging && draggedObject != null)
         {
-            // Обновляем позицию объекта - центр объекта следует за курсором
-            draggedObject.position = worldPosition;
+            // Проверяем, что объект еще существует
+            if (draggedObject != null)
+            {
+                // Обновляем позицию объекта - центр объекта следует за курсором
+                draggedObject.position = worldPosition;
+            }
+            else
+            {
+                // Объект был удален, прекращаем перетаскивание
+                isDragging = false;
+                draggedObject = null;
+            }
         }
     }
     
@@ -191,6 +228,13 @@ public class CursorTagDetector : MonoBehaviour
         if (!useDropZone)
             return true; // Если зона отключена, можно отпускать везде
         
+        // Проверяем, не пытается ли игрок поместить объект на точку спавна
+        if (prefabSpawner != null && IsPositionOnSpawnPoint(position))
+        {
+            Debug.Log("Нельзя помещать объекты на точки спавна!");
+            return false;
+        }
+        
         float minX = zoneCenter.x - zoneSize.x / 2f;
         float maxX = zoneCenter.x + zoneSize.x / 2f;
         float minY = zoneCenter.y - zoneSize.y / 2f;
@@ -198,6 +242,34 @@ public class CursorTagDetector : MonoBehaviour
         
         return position.x >= minX && position.x <= maxX && 
                position.y >= minY && position.y <= maxY;
+    }
+    
+    // Проверяет, находится ли позиция на точке спавна
+    bool IsPositionOnSpawnPoint(Vector3 position)
+    {
+        if (prefabSpawner == null)
+            return false;
+            
+        // Получаем точки спавна из PrefabSpawner
+        var spawnPoints = prefabSpawner.spawnPoints;
+        if (spawnPoints == null)
+            return false;
+            
+        float checkRadius = 1.0f; // Используем фиксированный радиус проверки
+            
+        foreach (Transform spawnPoint in spawnPoints)
+        {
+            if (spawnPoint != null)
+            {
+                float distance = Vector3.Distance(position, spawnPoint.position);
+                if (distance <= checkRadius)
+                {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
     
     // Воспроизводит звук поднятия объекта
@@ -279,6 +351,24 @@ public class CursorTagDetector : MonoBehaviour
             // Показываем центр зоны
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(new Vector3(zoneCenter.x, zoneCenter.y, 0), 0.2f);
+        }
+        
+        // Показываем точки спавна как запрещенные зоны
+        if (prefabSpawner != null)
+        {
+            var spawnPoints = prefabSpawner.spawnPoints;
+            if (spawnPoints != null)
+            {
+                Gizmos.color = new Color(1f, 0f, 0f, 0.3f); // Красный с прозрачностью
+                float checkRadius = 1.0f; // Используем фиксированный радиус проверки
+                foreach (Transform spawnPoint in spawnPoints)
+                {
+                    if (spawnPoint != null)
+                    {
+                        Gizmos.DrawWireSphere(spawnPoint.position, checkRadius);
+                    }
+                }
+            }
         }
     }
 }

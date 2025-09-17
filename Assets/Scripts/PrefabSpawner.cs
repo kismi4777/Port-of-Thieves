@@ -18,6 +18,13 @@ public class PrefabSpawner : MonoBehaviour
     public bool continuousSpawning = false;
     public float spawnInterval = 2f;
     
+    [Header("Настройки автоматического удаления")]
+    public bool autoCleanup = true;
+    public float objectLifetime = 10f;
+    public bool randomLifetime = false;
+    public float minLifetime = 5f;
+    public float maxLifetime = 15f;
+    
     [Header("Управление спавн поинтами")]
     [SerializeField] private bool showSpawnPointControls = true;
     
@@ -28,7 +35,22 @@ public class PrefabSpawner : MonoBehaviour
         AllPoints   // На всех точках одновременно
     }
     
-    private List<GameObject> spawnedObjects = new List<GameObject>();
+    [System.Serializable]
+    public class SpawnedObjectInfo
+    {
+        public GameObject obj;
+        public float lifetime;
+        public float spawnTime;
+        
+        public SpawnedObjectInfo(GameObject obj, float lifetime)
+        {
+            this.obj = obj;
+            this.lifetime = lifetime;
+            this.spawnTime = Time.time;
+        }
+    }
+    
+    private List<SpawnedObjectInfo> spawnedObjects = new List<SpawnedObjectInfo>();
     private int currentSpawnIndex = 0;
     
     void Start()
@@ -45,6 +67,11 @@ public class PrefabSpawner : MonoBehaviour
         {
             StartCoroutine(ContinuousSpawning());
         }
+        
+        if (autoCleanup)
+        {
+            StartCoroutine(AutoCleanupRoutine());
+        }
     }
     
     IEnumerator SpawnWithDelay()
@@ -60,6 +87,41 @@ public class PrefabSpawner : MonoBehaviour
             yield return new WaitForSeconds(spawnInterval);
             SpawnPrefab();
         }
+    }
+    
+    IEnumerator AutoCleanupRoutine()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(0.5f); // Проверяем каждые 0.5 секунды
+            
+            for (int i = spawnedObjects.Count - 1; i >= 0; i--)
+            {
+                if (spawnedObjects[i].obj == null)
+                {
+                    // Объект уже удален, убираем из списка
+                    spawnedObjects.RemoveAt(i);
+                    continue;
+                }
+                
+                // Проверяем, истекло ли время жизни объекта
+                if (Time.time - spawnedObjects[i].spawnTime >= spawnedObjects[i].lifetime)
+                {
+                    Debug.Log("Автоматически удален объект: " + spawnedObjects[i].obj.name + " (время жизни: " + spawnedObjects[i].lifetime + "с)");
+                    Destroy(spawnedObjects[i].obj);
+                    spawnedObjects.RemoveAt(i);
+                }
+            }
+        }
+    }
+    
+    float GetObjectLifetime()
+    {
+        if (randomLifetime)
+        {
+            return Random.Range(minLifetime, maxLifetime);
+        }
+        return objectLifetime;
     }
     
     public void SpawnPrefab()
@@ -81,9 +143,10 @@ public class PrefabSpawner : MonoBehaviour
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
         
-        spawnedObjects.Add(spawnedObject);
+        float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
+        spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
         
-        Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPosition);
+        Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPosition + (autoCleanup ? " (время жизни: " + lifetime + "с)" : ""));
     }
     
     public void SpawnAllPrefabs()
@@ -107,9 +170,11 @@ public class PrefabSpawner : MonoBehaviour
             {
                 GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
                 GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPoints[i].position, Quaternion.identity);
-                spawnedObjects.Add(spawnedObject);
                 
-                Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position);
+                float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
+                spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
+                
+                Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position + (autoCleanup ? " (время жизни: " + lifetime + "с)" : ""));
             }
         }
         
@@ -151,7 +216,8 @@ public class PrefabSpawner : MonoBehaviour
         GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
         GameObject spawnedObject = Instantiate(prefabToSpawn, position, Quaternion.identity);
         
-        spawnedObjects.Add(spawnedObject);
+        float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
+        spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
     }
     
     public void SpawnSpecificPrefab(int prefabIndex)
@@ -172,7 +238,8 @@ public class PrefabSpawner : MonoBehaviour
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPosition, Quaternion.identity);
         
-        spawnedObjects.Add(spawnedObject);
+        float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
+        spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
     }
     
     public void SpawnSpecificPrefabOnAllPoints(int prefabIndex)
@@ -195,9 +262,11 @@ public class PrefabSpawner : MonoBehaviour
             if (spawnPoints[i] != null)
             {
                 GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPoints[i].position, Quaternion.identity);
-                spawnedObjects.Add(spawnedObject);
                 
-                Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position);
+                float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
+                spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
+                
+                Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position + (autoCleanup ? " (время жизни: " + lifetime + "с)" : ""));
             }
         }
         
@@ -206,10 +275,10 @@ public class PrefabSpawner : MonoBehaviour
     
     public void ClearAllSpawnedObjects()
     {
-        foreach (GameObject obj in spawnedObjects)
+        foreach (SpawnedObjectInfo objInfo in spawnedObjects)
         {
-            if (obj != null)
-                Destroy(obj);
+            if (objInfo.obj != null)
+                Destroy(objInfo.obj);
         }
         spawnedObjects.Clear();
     }
@@ -217,6 +286,27 @@ public class PrefabSpawner : MonoBehaviour
     public int GetSpawnedObjectsCount()
     {
         return spawnedObjects.Count;
+    }
+    
+    public void SetAutoCleanup(bool enabled)
+    {
+        autoCleanup = enabled;
+        if (enabled && !IsInvoking("AutoCleanupRoutine"))
+        {
+            StartCoroutine(AutoCleanupRoutine());
+        }
+    }
+    
+    public void SetObjectLifetime(float lifetime)
+    {
+        objectLifetime = lifetime;
+    }
+    
+    public void SetRandomLifetime(bool enabled, float min = 5f, float max = 15f)
+    {
+        randomLifetime = enabled;
+        minLifetime = min;
+        maxLifetime = max;
     }
     
     public void SetSpawnPointMode(SpawnPointMode mode)

@@ -791,8 +791,8 @@ Camera:
   m_GameObject: {fileID: 963194225}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -861,7 +861,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   DefaultResolution: {x: 1920, y: 1080}
-  WidthOrHeight: 0.5
+  WidthOrHeight: 0
 --- !u!1 &1045342278
 GameObject:
   m_ObjectHideFlags: 0
@@ -908,6 +908,11 @@ MonoBehaviour:
   spawnDelay: 1
   continuousSpawning: 1
   spawnInterval: 10
+  autoCleanup: 1
+  objectLifetime: 5
+  randomLifetime: 0
+  minLifetime: 5
+  maxLifetime: 15
   showSpawnPointControls: 1
 --- !u!4 &1045342280
 Transform:
@@ -971,6 +976,7 @@ MonoBehaviour:
   useParticleEffects: 1
   dropParticlePrefab: {fileID: 8014483469092822653, guid: 89d07ba3951d93347abfac1a1ac405b4, type: 3}
   particleDuration: 0.5
+  prefabSpawner: {fileID: 1045342279}
 --- !u!4 &1117756695
 Transform:
   m_ObjectHideFlags: 0
