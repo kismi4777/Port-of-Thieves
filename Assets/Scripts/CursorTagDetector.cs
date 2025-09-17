@@ -136,7 +136,7 @@ public class CursorTagDetector : MonoBehaviour
                 // Уведомляем PrefabSpawner о том, что объект был забран и начал перетаскивание
                 if (prefabSpawner != null)
                 {
-                    // Методы MarkObjectAsPickedUp и MarkObjectDragging не существуют в PrefabSpawner
+                    prefabSpawner.MarkObjectAsDragging(draggedObject.gameObject);
                     Debug.Log($"Объект {draggedObject.name} взят для перетаскивания");
                 }
                 
@@ -175,7 +175,7 @@ public class CursorTagDetector : MonoBehaviour
                     // Уведомляем PrefabSpawner о том, что объект помещен в drop zone
                     if (prefabSpawner != null)
                     {
-                        // Метод MarkObjectInDropZone не существует в PrefabSpawner
+                        prefabSpawner.MarkObjectAsInDropZone(draggedObject.gameObject);
                         Debug.Log($"Объект {draggedObject.name} помещен в drop zone");
                     }
                     
@@ -189,13 +189,19 @@ public class CursorTagDetector : MonoBehaviour
                     // Воспроизводим частицы при возврате
                     PlayDropParticles(draggedObject.position);
                     
+                    // Уведомляем PrefabSpawner о том, что объект вне drop zone
+                    if (prefabSpawner != null)
+                    {
+                        prefabSpawner.MarkObjectAsOutOfDropZone(draggedObject.gameObject);
+                    }
+                    
                     Debug.Log($"Returned: {draggedObject.name} to spawn point (outside drop zone)");
                 }
                 
                 // Уведомляем PrefabSpawner о завершении перетаскивания
                 if (prefabSpawner != null)
                 {
-                    // Метод MarkObjectDragging не существует в PrefabSpawner
+                    prefabSpawner.MarkObjectAsDropped(draggedObject.gameObject);
                     Debug.Log($"Перетаскивание объекта {draggedObject.name} завершено");
                 }
                 
@@ -223,7 +229,7 @@ public class CursorTagDetector : MonoBehaviour
     }
     
     // Проверяет, можно ли отпустить объект в данной позиции
-    bool CanDropAtPosition(Vector3 position)
+    public bool CanDropAtPosition(Vector3 position)
     {
         if (!useDropZone)
             return true; // Если зона отключена, можно отпускать везде

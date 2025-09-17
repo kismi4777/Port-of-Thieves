@@ -21,12 +21,14 @@ public class PrefabSpawner : MonoBehaviour
     [Header("Настройки автоматического удаления")]
     public bool autoCleanup = true;
     public float objectLifetime = 10f;
-    public bool randomLifetime = false;
-    public float minLifetime = 5f;
-    public float maxLifetime = 15f;
+    public bool preventCleanupOnDragging = true;
+    public bool preventCleanupInDropZone = true;
     
     [Header("Управление спавн поинтами")]
     [SerializeField] private bool showSpawnPointControls = true;
+    
+    [Header("Drop Zone Integration")]
+    public CursorTagDetector cursorDetector; // Ссылка на CursorTagDetector для проверки drop zone
     
     public enum SpawnPointMode
     {
@@ -41,12 +43,16 @@ public class PrefabSpawner : MonoBehaviour
         public GameObject obj;
         public float lifetime;
         public float spawnTime;
+        public bool isBeingDragged;
+        public bool isInDropZone;
         
         public SpawnedObjectInfo(GameObject obj, float lifetime)
         {
             this.obj = obj;
             this.lifetime = lifetime;
             this.spawnTime = Time.time;
+            this.isBeingDragged = false;
+            this.isInDropZone = false;
         }
     }
     
@@ -89,6 +95,7 @@ public class PrefabSpawner : MonoBehaviour
         }
     }
     
+    
     IEnumerator AutoCleanupRoutine()
     {
         while (true)
@@ -105,7 +112,23 @@ public class PrefabSpawner : MonoBehaviour
                 }
                 
                 // Проверяем, истекло ли время жизни объекта
-                if (Time.time - spawnedObjects[i].spawnTime >= spawnedObjects[i].lifetime)
+                bool shouldDelete = Time.time - spawnedObjects[i].spawnTime >= spawnedObjects[i].lifetime;
+                
+                // Если включена защита от удаления при перетаскивании, проверяем состояние перетаскивания
+                if (shouldDelete && preventCleanupOnDragging && spawnedObjects[i].isBeingDragged)
+                {
+                    Debug.Log("Объект " + spawnedObjects[i].obj.name + " не удален - он перетаскивается!");
+                    shouldDelete = false;
+                }
+                
+                // Если включена защита от удаления в drop zone, проверяем нахождение в drop zone
+                if (shouldDelete && preventCleanupInDropZone && IsObjectInDropZone(spawnedObjects[i].obj))
+                {
+                    Debug.Log("Объект " + spawnedObjects[i].obj.name + " не удален - он находится в drop zone!");
+                    shouldDelete = false;
+                }
+                
+                if (shouldDelete)
                 {
                     Debug.Log("Автоматически удален объект: " + spawnedObjects[i].obj.name + " (время жизни: " + spawnedObjects[i].lifetime + "с)");
                     Destroy(spawnedObjects[i].obj);
@@ -117,10 +140,6 @@ public class PrefabSpawner : MonoBehaviour
     
     float GetObjectLifetime()
     {
-        if (randomLifetime)
-        {
-            return Random.Range(minLifetime, maxLifetime);
-        }
         return objectLifetime;
     }
     
@@ -302,12 +321,121 @@ public class PrefabSpawner : MonoBehaviour
         objectLifetime = lifetime;
     }
     
-    public void SetRandomLifetime(bool enabled, float min = 5f, float max = 15f)
+    public void SetDraggingProtection(bool enabled)
     {
-        randomLifetime = enabled;
-        minLifetime = min;
-        maxLifetime = max;
+        preventCleanupOnDragging = enabled;
     }
+    
+    public void MarkObjectAsDragging(GameObject obj)
+    {
+        for (int i = 0; i < spawnedObjects.Count; i++)
+        {
+            if (spawnedObjects[i].obj == obj)
+            {
+                spawnedObjects[i].isBeingDragged = true;
+                Debug.Log("Объект " + obj.name + " помечен как перетаскиваемый");
+                return;
+            }
+        }
+    }
+    
+    public void MarkObjectAsDropped(GameObject obj)
+    {
+        for (int i = 0; i < spawnedObjects.Count; i++)
+        {
+            if (spawnedObjects[i].obj == obj)
+            {
+                spawnedObjects[i].isBeingDragged = false;
+                Debug.Log("Объект " + obj.name + " помечен как отпущенный");
+                return;
+            }
+        }
+    }
+    
+    public bool IsObjectBeingDragged(GameObject obj)
+    {
+        for (int i = 0; i < spawnedObjects.Count; i++)
+        {
+            if (spawnedObjects[i].obj == obj)
+            {
+                return spawnedObjects[i].isBeingDragged;
+            }
+        }
+        return false;
+    }
+    
+    public int GetDraggedObjectsCount()
+    {
+        int count = 0;
+        foreach (var objInfo in spawnedObjects)
+        {
+            if (objInfo.isBeingDragged)
+                count++;
+        }
+        return count;
+    }
+    
+    public void SetDropZoneProtection(bool enabled)
+    {
+        preventCleanupInDropZone = enabled;
+    }
+    
+    public void MarkObjectAsInDropZone(GameObject obj)
+    {
+        for (int i = 0; i < spawnedObjects.Count; i++)
+        {
+            if (spawnedObjects[i].obj == obj)
+            {
+                spawnedObjects[i].isInDropZone = true;
+                Debug.Log("Объект " + obj.name + " помечен как находящийся в drop zone");
+                return;
+            }
+        }
+    }
+    
+    public void MarkObjectAsOutOfDropZone(GameObject obj)
+    {
+        for (int i = 0; i < spawnedObjects.Count; i++)
+        {
+            if (spawnedObjects[i].obj == obj)
+            {
+                spawnedObjects[i].isInDropZone = false;
+                Debug.Log("Объект " + obj.name + " помечен как находящийся вне drop zone");
+                return;
+            }
+        }
+    }
+    
+    public bool IsObjectInDropZone(GameObject obj)
+    {
+        // Если нет ссылки на CursorTagDetector, используем внутренний флаг
+        if (cursorDetector == null)
+        {
+            for (int i = 0; i < spawnedObjects.Count; i++)
+            {
+                if (spawnedObjects[i].obj == obj)
+                {
+                    return spawnedObjects[i].isInDropZone;
+                }
+            }
+            return false;
+        }
+        
+        // Используем CursorTagDetector для проверки drop zone
+        return cursorDetector.CanDropAtPosition(obj.transform.position);
+    }
+    
+    public int GetObjectsInDropZoneCount()
+    {
+        int count = 0;
+        foreach (var objInfo in spawnedObjects)
+        {
+            if (objInfo.isInDropZone)
+                count++;
+        }
+        return count;
+    }
+    
     
     public void SetSpawnPointMode(SpawnPointMode mode)
     {
