@@ -18,12 +18,17 @@ public class MouseObjectDetector : MonoBehaviour
     [SerializeField] private TextMeshProUGUI displayText;
     [SerializeField] private string displayFormat = "Объект: {0}";
     
+    [Header("Prefab Control")]
+    [SerializeField] private GameObject targetPrefab; // Префаб для включения/выключения
+    [SerializeField] private bool showPrefabWhenObjectDetected = true; // Показывать префаб при обнаружении объекта
+    
     private Camera mainCamera;
     private Mouse mouse;
     private Vector2 lastMousePosition;
     private string lastDisplayedName = "None";
     private float hideTimer = 0f; // Таймер для задержки исчезания
     private bool isObjectDetected = false; // Флаг обнаружения объекта
+    private bool prefabWasActive = false; // Предыдущее состояние префаба
     
     void Start()
     {
@@ -198,6 +203,31 @@ public class MouseObjectDetector : MonoBehaviour
         return hideDelay;
     }
     
+    public void SetTargetPrefab(GameObject prefab)
+    {
+        targetPrefab = prefab;
+    }
+    
+    public GameObject GetTargetPrefab()
+    {
+        return targetPrefab;
+    }
+    
+    public void SetShowPrefabWhenObjectDetected(bool show)
+    {
+        showPrefabWhenObjectDetected = show;
+    }
+    
+    public bool GetShowPrefabWhenObjectDetected()
+    {
+        return showPrefabWhenObjectDetected;
+    }
+    
+    public void ForceUpdatePrefabVisibility()
+    {
+        UpdatePrefabVisibility();
+    }
+    
     private void UpdateDisplay()
     {
         if (displayText != null)
@@ -209,6 +239,35 @@ public class MouseObjectDetector : MonoBehaviour
             else
             {
                 displayText.text = string.Format(displayFormat, detectedObjectName);
+            }
+        }
+        
+        // Управление префабом
+        UpdatePrefabVisibility();
+    }
+    
+    private void UpdatePrefabVisibility()
+    {
+        if (targetPrefab == null) return;
+        
+        bool shouldShowPrefab = detectedObjectName != "None" && showPrefabWhenObjectDetected;
+        
+        // Обновляем состояние префаба только если оно изменилось
+        if (targetPrefab.activeInHierarchy != shouldShowPrefab)
+        {
+            targetPrefab.SetActive(shouldShowPrefab);
+            prefabWasActive = shouldShowPrefab;
+            
+            if (showDebugInfo)
+            {
+                if (shouldShowPrefab)
+                {
+                    Debug.Log($"Префаб '{targetPrefab.name}' включен (объект обнаружен: {detectedObjectName})");
+                }
+                else
+                {
+                    Debug.Log($"Префаб '{targetPrefab.name}' выключен (объект не обнаружен)");
+                }
             }
         }
     }
