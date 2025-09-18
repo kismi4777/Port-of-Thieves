@@ -223,6 +223,12 @@ public class PrefabSpawner : MonoBehaviour
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
         
+        // Убираем суффикс "(Clone)" из имени объекта
+        if (spawnedObject.name.EndsWith("(Clone)"))
+        {
+            spawnedObject.name = spawnedObject.name.Replace("(Clone)", "");
+        }
+        
         // Устанавливаем правильный масштаб в зависимости от зоны спавна
         SetCorrectScaleForSpawnedObject(spawnedObject, spawnPosition);
         
@@ -261,6 +267,12 @@ public class PrefabSpawner : MonoBehaviour
             {
                 GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
                 GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPoints[i].position, Quaternion.identity);
+                
+                // Убираем суффикс "(Clone)" из имени объекта
+                if (spawnedObject.name.EndsWith("(Clone)"))
+                {
+                    spawnedObject.name = spawnedObject.name.Replace("(Clone)", "");
+                }
                 
                 // Устанавливаем правильный масштаб в зависимости от зоны спавна
                 SetCorrectScaleForSpawnedObject(spawnedObject, spawnPoints[i].position);
@@ -319,6 +331,12 @@ public class PrefabSpawner : MonoBehaviour
         GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
         GameObject spawnedObject = Instantiate(prefabToSpawn, position, Quaternion.identity);
         
+        // Убираем суффикс "(Clone)" из имени объекта
+        if (spawnedObject.name.EndsWith("(Clone)"))
+        {
+            spawnedObject.name = spawnedObject.name.Replace("(Clone)", "");
+        }
+        
         // Устанавливаем правильный масштаб в зависимости от зоны спавна
         SetCorrectScaleForSpawnedObject(spawnedObject, position);
         
@@ -351,6 +369,12 @@ public class PrefabSpawner : MonoBehaviour
         
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPosition, Quaternion.identity);
+        
+        // Убираем суффикс "(Clone)" из имени объекта
+        if (spawnedObject.name.EndsWith("(Clone)"))
+        {
+            spawnedObject.name = spawnedObject.name.Replace("(Clone)", "");
+        }
         
         // Устанавливаем правильный масштаб в зависимости от зоны спавна
         SetCorrectScaleForSpawnedObject(spawnedObject, spawnPosition);
@@ -388,6 +412,12 @@ public class PrefabSpawner : MonoBehaviour
             if (spawnPoints[i] != null)
             {
                 GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPoints[i].position, Quaternion.identity);
+                
+                // Убираем суффикс "(Clone)" из имени объекта
+                if (spawnedObject.name.EndsWith("(Clone)"))
+                {
+                    spawnedObject.name = spawnedObject.name.Replace("(Clone)", "");
+                }
                 
                 // Устанавливаем правильный масштаб в зависимости от зоны спавна
                 SetCorrectScaleForSpawnedObject(spawnedObject, spawnPoints[i].position);
