@@ -23,6 +23,11 @@ public class PrefabSpawner : MonoBehaviour
     public float objectLifetime = 10f;
     public bool preventCleanupOnDragging = true;
     public bool preventCleanupInDropZone = true;
+    public bool enableDropZone2Cleanup = true; // Включить автоматическое удаление в drop zone 2
+    
+    [Header("Drop Zone 2 Cleanup Settings")]
+    private float lastSpawnTime = 0f; // Время последнего спавна
+    private bool isDropZone2CleanupScheduled = false; // Запланирована ли очистка drop zone 2
     
     
     [Header("Drop Zone Integration")]
@@ -76,6 +81,12 @@ public class PrefabSpawner : MonoBehaviour
         {
             StartCoroutine(AutoCleanupRoutine());
         }
+        
+        if (enableDropZone2Cleanup)
+        {
+            StartCoroutine(DropZone2CleanupRoutine());
+        }
+        
     }
     
     IEnumerator SpawnWithDelay()
@@ -136,9 +147,57 @@ public class PrefabSpawner : MonoBehaviour
         }
     }
     
+    
+    
     float GetObjectLifetime()
     {
         return objectLifetime;
+    }
+    
+    IEnumerator DropZone2CleanupRoutine()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(0.5f); // Проверяем каждые 0.5 секунды
+            
+            if (cursorDetector == null)
+            {
+                yield return new WaitForSeconds(1f);
+                continue;
+            }
+            
+            // Проверяем, истекло ли время с последнего спавна
+            if (lastSpawnTime > 0 && Time.time - lastSpawnTime >= objectLifetime && !isDropZone2CleanupScheduled)
+            {
+                Debug.Log("Время истекло! Удаляем все объекты в drop zone 2");
+                CleanupAllObjectsInDropZone2();
+                isDropZone2CleanupScheduled = true;
+            }
+        }
+    }
+    
+    void CleanupAllObjectsInDropZone2()
+    {
+        if (cursorDetector == null) return;
+        
+        // Находим все объекты с тегом "Obj" в сцене
+        GameObject[] allObjObjects = GameObject.FindGameObjectsWithTag("Obj");
+        int deletedCount = 0;
+        
+        foreach (GameObject obj in allObjObjects)
+        {
+            if (obj == null) continue;
+            
+            // Проверяем, находится ли объект в drop zone 2
+            if (cursorDetector.IsPositionInDropZone2(obj.transform.position))
+            {
+                Debug.Log("Удаляем объект " + obj.name + " из drop zone 2");
+                Destroy(obj);
+                deletedCount++;
+            }
+        }
+        
+        Debug.Log($"Удалено {deletedCount} объектов из drop zone 2");
     }
     
     public void SpawnPrefab()
@@ -162,6 +221,14 @@ public class PrefabSpawner : MonoBehaviour
         
         float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
         spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
+        
+        // Запускаем таймер для drop zone 2 cleanup
+        if (enableDropZone2Cleanup)
+        {
+            lastSpawnTime = Time.time;
+            isDropZone2CleanupScheduled = false;
+            Debug.Log("Запущен таймер для drop zone 2 cleanup: " + objectLifetime + "с");
+        }
         
         Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPosition + (autoCleanup ? " (время жизни: " + lifetime + "с)" : ""));
     }
@@ -193,6 +260,15 @@ public class PrefabSpawner : MonoBehaviour
                 
                 Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position + (autoCleanup ? " (время жизни: " + lifetime + "с)" : ""));
             }
+        }
+        
+        
+        // Запускаем таймер для drop zone 2 cleanup
+        if (enableDropZone2Cleanup)
+        {
+            lastSpawnTime = Time.time;
+            isDropZone2CleanupScheduled = false;
+            Debug.Log("Запущен таймер для drop zone 2 cleanup: " + objectLifetime + "с");
         }
         
         Debug.Log("Заспавнено " + spawnPoints.Length + " объектов на всех точках");
@@ -235,6 +311,14 @@ public class PrefabSpawner : MonoBehaviour
         
         float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
         spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
+        
+        // Запускаем таймер для drop zone 2 cleanup
+        if (enableDropZone2Cleanup)
+        {
+            lastSpawnTime = Time.time;
+            isDropZone2CleanupScheduled = false;
+            Debug.Log("Запущен таймер для drop zone 2 cleanup: " + objectLifetime + "с");
+        }
     }
     
     public void SpawnSpecificPrefab(int prefabIndex)
@@ -257,6 +341,15 @@ public class PrefabSpawner : MonoBehaviour
         
         float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
         spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
+        
+        // Запускаем таймер для drop zone 2 cleanup
+        if (enableDropZone2Cleanup)
+        {
+            lastSpawnTime = Time.time;
+            isDropZone2CleanupScheduled = false;
+            Debug.Log("Запущен таймер для drop zone 2 cleanup: " + objectLifetime + "с");
+        }
+        
     }
     
     public void SpawnSpecificPrefabOnAllPoints(int prefabIndex)
@@ -285,6 +378,14 @@ public class PrefabSpawner : MonoBehaviour
                 
                 Debug.Log("Заспавнен объект: " + spawnedObject.name + " в позиции " + spawnPoints[i].position + (autoCleanup ? " (время жизни: " + lifetime + "с)" : ""));
             }
+        }
+        
+        // Запускаем таймер для drop zone 2 cleanup
+        if (enableDropZone2Cleanup)
+        {
+            lastSpawnTime = Time.time;
+            isDropZone2CleanupScheduled = false;
+            Debug.Log("Запущен таймер для drop zone 2 cleanup: " + objectLifetime + "с");
         }
         
         Debug.Log("Заспавнено " + spawnPoints.Length + " объектов типа " + prefabsToSpawn[prefabIndex].name + " на всех точках");
@@ -378,6 +479,7 @@ public class PrefabSpawner : MonoBehaviour
         preventCleanupInDropZone = enabled;
     }
     
+    
     public void MarkObjectAsInDropZone(GameObject obj)
     {
         for (int i = 0; i < spawnedObjects.Count; i++)
@@ -389,6 +491,7 @@ public class PrefabSpawner : MonoBehaviour
                 return;
             }
         }
+        
     }
     
     public void MarkObjectAsOutOfDropZone(GameObject obj)
@@ -423,6 +526,7 @@ public class PrefabSpawner : MonoBehaviour
         return cursorDetector.CanDropAtPosition(obj.transform.position);
     }
     
+    
     public int GetObjectsInDropZoneCount()
     {
         int count = 0;
@@ -433,6 +537,7 @@ public class PrefabSpawner : MonoBehaviour
         }
         return count;
     }
+    
     
     
     public void SetSpawnPointMode(SpawnPointMode mode)

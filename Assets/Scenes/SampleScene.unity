@@ -912,6 +912,7 @@ MonoBehaviour:
   objectLifetime: 5
   preventCleanupOnDragging: 1
   preventCleanupInDropZone: 1
+  enableDropZone2Cleanup: 1
   cursorDetector: {fileID: 1117756694}
 --- !u!4 &1045342280
 Transform:
@@ -1122,8 +1123,8 @@ Transform:
   m_GameObject: {fileID: 1674541807}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -13.922694, y: -1.6597754, z: 0}
-  m_LocalScale: {x: 1.957802, y: 1.9169511, z: 1}
+  m_LocalPosition: {x: -13.922694, y: -1.6895, z: 0}
+  m_LocalScale: {x: 1.957802, y: 1.9265358, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 70104230}

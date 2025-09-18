@@ -37,6 +37,7 @@ public class CursorTagDetector : MonoBehaviour
     [Header("PrefabSpawner Integration")]
     public PrefabSpawner prefabSpawner; // Ссылка на PrefabSpawner для уведомлений
     
+    
     private Camera mainCamera;
     private Mouse mouse;
     private bool isDragging = false;
@@ -44,6 +45,7 @@ public class CursorTagDetector : MonoBehaviour
     private Vector3 originalPosition; // Исходная позиция объекта
     private Vector3 originalScale; // Исходный масштаб объекта
     private AudioSource audioSource; // Компонент для воспроизведения звуков
+    
     
     void Start()
     {
@@ -238,13 +240,6 @@ public class CursorTagDetector : MonoBehaviour
         if (!useDropZone)
             return true; // Если зона отключена, можно отпускать везде
         
-        // Проверяем, не пытается ли игрок поместить объект на точку спавна
-        if (prefabSpawner != null && IsPositionOnSpawnPoint(position))
-        {
-            Debug.Log("Нельзя помещать объекты на точки спавна!");
-            return false;
-        }
-        
         // Проверяем первую дроп зону
         if (IsPositionInZone(position, zone1Center, zone1Size))
         {
@@ -274,33 +269,12 @@ public class CursorTagDetector : MonoBehaviour
                position.y >= minY && position.y <= maxY;
     }
     
-    // Проверяет, находится ли позиция на точке спавна
-    bool IsPositionOnSpawnPoint(Vector3 position)
+    // Проверяет, находится ли позиция в drop zone 2
+    public bool IsPositionInDropZone2(Vector3 position)
     {
-        if (prefabSpawner == null)
-            return false;
-            
-        // Получаем точки спавна из PrefabSpawner
-        var spawnPoints = prefabSpawner.spawnPoints;
-        if (spawnPoints == null)
-            return false;
-            
-        float checkRadius = 1.0f; // Используем фиксированный радиус проверки
-            
-        foreach (Transform spawnPoint in spawnPoints)
-        {
-            if (spawnPoint != null)
-            {
-                float distance = Vector3.Distance(position, spawnPoint.position);
-                if (distance <= checkRadius)
-                {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
+        return IsPositionInZone(position, zone2Center, zone2Size);
     }
+    
     
     // Воспроизводит звук поднятия объекта
     void PlayPickupSound()
@@ -370,6 +344,7 @@ public class CursorTagDetector : MonoBehaviour
         }
     }
     
+    
     // Визуализация зон в Scene View (только в редакторе)
     void OnDrawGizmos()
     {
@@ -392,22 +367,5 @@ public class CursorTagDetector : MonoBehaviour
             Gizmos.DrawWireSphere(new Vector3(zone2Center.x, zone2Center.y, 0), 0.2f);
         }
         
-        // Показываем точки спавна как запрещенные зоны
-        if (prefabSpawner != null)
-        {
-            var spawnPoints = prefabSpawner.spawnPoints;
-            if (spawnPoints != null)
-            {
-                Gizmos.color = new Color(1f, 0f, 0f, 0.3f); // Красный с прозрачностью
-                float checkRadius = 1.0f; // Используем фиксированный радиус проверки
-                foreach (Transform spawnPoint in spawnPoints)
-                {
-                    if (spawnPoint != null)
-                    {
-                        Gizmos.DrawWireSphere(spawnPoint.position, checkRadius);
-                    }
-                }
-            }
-        }
     }
 }
