@@ -159,13 +159,13 @@ public class CursorTagDetector : MonoBehaviour
         // Если кнопка мыши отпущена
         if (mouse.leftButton.wasReleasedThisFrame)
         {
-            if (isDragging)
+            if (isDragging && draggedObject != null)
             {
                 // Воспроизводим звук опускания СРАЗУ при отпускании перетаскиваемого объекта
                 PlayDropSound();
                 
                 // Восстанавливаем исходный масштаб
-                if (useScaleEffect && draggedObject != null)
+                if (useScaleEffect)
                 {
                     draggedObject.localScale = originalScale;
                 }
@@ -214,23 +214,25 @@ public class CursorTagDetector : MonoBehaviour
                 isDragging = false;
                 draggedObject = null;
             }
+            else if (isDragging && draggedObject == null)
+            {
+                // Объект был уничтожен во время перетаскивания
+                Debug.LogWarning("Перетаскиваемый объект был уничтожен во время перетаскивания");
+                isDragging = false;
+            }
         }
         
         // Если перетаскиваем объект - можно двигать везде
         if (isDragging && draggedObject != null)
         {
-            // Проверяем, что объект еще существует
-            if (draggedObject != null)
-            {
-                // Обновляем позицию объекта - центр объекта следует за курсором
-                draggedObject.position = worldPosition;
-            }
-            else
-            {
-                // Объект был удален, прекращаем перетаскивание
-                isDragging = false;
-                draggedObject = null;
-            }
+            // Обновляем позицию объекта - центр объекта следует за курсором
+            draggedObject.position = worldPosition;
+        }
+        else if (isDragging && draggedObject == null)
+        {
+            // Объект был удален, прекращаем перетаскивание
+            Debug.LogWarning("Перетаскиваемый объект был уничтожен во время перетаскивания");
+            isDragging = false;
         }
     }
     

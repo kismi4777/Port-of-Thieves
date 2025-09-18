@@ -188,12 +188,16 @@ public class PrefabSpawner : MonoBehaviour
         {
             if (obj == null) continue;
             
-            // Проверяем, находится ли объект в drop zone 2
-            if (cursorDetector.IsPositionInDropZone2(obj.transform.position))
+            // Проверяем, что объект еще существует и его transform не null
+            if (obj.transform != null)
             {
-                Debug.Log("Удаляем объект " + obj.name + " из drop zone 2");
-                Destroy(obj);
-                deletedCount++;
+                // Проверяем, находится ли объект в drop zone 2
+                if (cursorDetector.IsPositionInDropZone2(obj.transform.position))
+                {
+                    Debug.Log("Удаляем объект " + obj.name + " из drop zone 2");
+                    Destroy(obj);
+                    deletedCount++;
+                }
             }
         }
         
@@ -523,7 +527,11 @@ public class PrefabSpawner : MonoBehaviour
         }
         
         // Используем CursorTagDetector для проверки drop zone
-        return cursorDetector.CanDropAtPosition(obj.transform.position);
+        if (obj.transform != null)
+        {
+            return cursorDetector.CanDropAtPosition(obj.transform.position);
+        }
+        return false;
     }
     
     
