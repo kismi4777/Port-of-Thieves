@@ -223,6 +223,9 @@ public class PrefabSpawner : MonoBehaviour
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
         
+        // Устанавливаем правильный масштаб в зависимости от зоны спавна
+        SetCorrectScaleForSpawnedObject(spawnedObject, spawnPosition);
+        
         float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
         spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
         
@@ -258,6 +261,9 @@ public class PrefabSpawner : MonoBehaviour
             {
                 GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
                 GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPoints[i].position, Quaternion.identity);
+                
+                // Устанавливаем правильный масштаб в зависимости от зоны спавна
+                SetCorrectScaleForSpawnedObject(spawnedObject, spawnPoints[i].position);
                 
                 float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
                 spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
@@ -313,6 +319,9 @@ public class PrefabSpawner : MonoBehaviour
         GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
         GameObject spawnedObject = Instantiate(prefabToSpawn, position, Quaternion.identity);
         
+        // Устанавливаем правильный масштаб в зависимости от зоны спавна
+        SetCorrectScaleForSpawnedObject(spawnedObject, position);
+        
         float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
         spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
         
@@ -342,6 +351,9 @@ public class PrefabSpawner : MonoBehaviour
         
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPosition, Quaternion.identity);
+        
+        // Устанавливаем правильный масштаб в зависимости от зоны спавна
+        SetCorrectScaleForSpawnedObject(spawnedObject, spawnPosition);
         
         float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
         spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
@@ -376,6 +388,9 @@ public class PrefabSpawner : MonoBehaviour
             if (spawnPoints[i] != null)
             {
                 GameObject spawnedObject = Instantiate(prefabsToSpawn[prefabIndex], spawnPoints[i].position, Quaternion.identity);
+                
+                // Устанавливаем правильный масштаб в зависимости от зоны спавна
+                SetCorrectScaleForSpawnedObject(spawnedObject, spawnPoints[i].position);
                 
                 float lifetime = autoCleanup ? GetObjectLifetime() : float.MaxValue;
                 spawnedObjects.Add(new SpawnedObjectInfo(spawnedObject, lifetime));
@@ -644,6 +659,31 @@ public class PrefabSpawner : MonoBehaviour
         currentSpawnIndex = 0;
         
         Debug.Log("Все спавн поинты удалены");
+    }
+    
+    // Устанавливает правильный масштаб для заспавненного объекта в зависимости от зоны
+    private void SetCorrectScaleForSpawnedObject(GameObject spawnedObject, Vector3 spawnPosition)
+    {
+        if (spawnedObject == null || cursorDetector == null) return;
+        
+        // Получаем исходный масштаб объекта (масштаб префаба)
+        Vector3 originalScale = spawnedObject.transform.localScale;
+        
+        // Проверяем, находится ли объект в drop zone 2
+        if (cursorDetector.IsPositionInDropZone2(spawnPosition))
+        {
+            // Если в drop zone 2, применяем масштаб drop zone 2
+            if (cursorDetector.useDropZone2ScaleEffect)
+            {
+                spawnedObject.transform.localScale = originalScale * cursorDetector.dropZone2ScaleMultiplier;
+                Debug.Log($"Объект {spawnedObject.name} заспавнен в drop zone 2, масштаб установлен: {originalScale} * {cursorDetector.dropZone2ScaleMultiplier} = {spawnedObject.transform.localScale}");
+            }
+        }
+        else
+        {
+            // Если не в drop zone 2, оставляем исходный масштаб
+            Debug.Log($"Объект {spawnedObject.name} заспавнен вне drop zone 2, масштаб: {originalScale}");
+        }
     }
     
     void OnDrawGizmosSelected()

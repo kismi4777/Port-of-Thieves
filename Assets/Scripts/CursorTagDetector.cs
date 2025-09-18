@@ -23,6 +23,10 @@ public class CursorTagDetector : MonoBehaviour
     public bool useScaleEffect = true; // Включить эффект масштаба
     public float scaleMultiplier = 1.2f; // Множитель масштаба (1.2 = +20%)
     
+    [Header("Drop Zone 2 Scale Effect")]
+    public bool useDropZone2ScaleEffect = true; // Включить эффект масштаба для drop zone 2
+    public float dropZone2ScaleMultiplier = 1.5f; // Множитель масштаба для drop zone 2 (1.5 = +50%)
+    
     [Header("Sound Effects")]
     public bool useSoundEffects = true; // Включить звуковые эффекты
     public AudioClip pickupSound; // Звук при поднятии объекта
@@ -44,6 +48,8 @@ public class CursorTagDetector : MonoBehaviour
     private Transform draggedObject = null;
     private Vector3 originalPosition; // Исходная позиция объекта
     private Vector3 originalScale; // Исходный масштаб объекта
+    private Vector3 trueOriginalScale; // Истинно исходный масштаб объекта (без эффектов)
+    private bool isInDropZone2 = false; // Флаг нахождения в drop zone 2
     private AudioSource audioSource; // Компонент для воспроизведения звуков
     
     
@@ -139,6 +145,24 @@ public class CursorTagDetector : MonoBehaviour
                 originalPosition = draggedObject.position;
                 originalScale = draggedObject.localScale;
                 
+                // Проверяем, был ли объект в drop zone 2 перед взятием
+                bool wasInDropZone2 = IsPositionInDropZone2(draggedObject.position);
+                isInDropZone2 = false; // Сбрасываем флаг, так как объект взят
+                
+                // Вычисляем истинно исходный масштаб
+                if (wasInDropZone2 && useDropZone2ScaleEffect)
+                {
+                    // Если объект был в drop zone 2, восстанавливаем истинно исходный масштаб
+                    trueOriginalScale = draggedObject.localScale / dropZone2ScaleMultiplier;
+                    Debug.Log($"Объект был в drop zone 2, истинно исходный масштаб: {draggedObject.localScale} / {dropZone2ScaleMultiplier} = {trueOriginalScale}");
+                }
+                else
+                {
+                    // Если объект не был в drop zone 2, текущий масштаб и есть исходный
+                    trueOriginalScale = draggedObject.localScale;
+                    Debug.Log($"Объект не был в drop zone 2, истинно исходный масштаб: {trueOriginalScale}");
+                }
+                
                 // Уведомляем PrefabSpawner о том, что объект был забран и начал перетаскивание
                 if (prefabSpawner != null)
                 {
@@ -146,10 +170,20 @@ public class CursorTagDetector : MonoBehaviour
                     Debug.Log($"Объект {draggedObject.name} взят для перетаскивания");
                 }
                 
-                // Увеличиваем масштаб при взятии объекта
+                // Устанавливаем масштаб при взятии объекта
                 if (useScaleEffect)
                 {
-                    draggedObject.localScale = originalScale * scaleMultiplier;
+                    // Всегда используем истинно исходный масштаб для эффекта перетаскивания
+                    draggedObject.localScale = trueOriginalScale * scaleMultiplier;
+                    
+                    if (wasInDropZone2 && useDropZone2ScaleEffect)
+                    {
+                        Debug.Log($"Объект {draggedObject.name} взят из drop zone 2, масштаб восстановлен к обычному перетаскиванию: {trueOriginalScale} * {scaleMultiplier} = {draggedObject.localScale}");
+                    }
+                    else
+                    {
+                        Debug.Log($"Объект {draggedObject.name} взят, применен эффект перетаскивания: {trueOriginalScale} * {scaleMultiplier} = {draggedObject.localScale}");
+                    }
                 }
                 
                 Debug.Log($"Started dragging: {draggedObject.name} from {originalPosition}");
@@ -175,6 +209,22 @@ public class CursorTagDetector : MonoBehaviour
                 {
                     // Объект остается в новой позиции
                     draggedObject.position = worldPosition;
+                    
+                    // Проверяем, находится ли объект в drop zone 2 и изменяем масштаб
+                    if (useDropZone2ScaleEffect && IsPositionInDropZone2(worldPosition))
+                    {
+                        draggedObject.localScale = trueOriginalScale * dropZone2ScaleMultiplier;
+                        isInDropZone2 = true;
+                        Debug.Log($"Объект {draggedObject.name} помещен в drop zone 2, масштаб увеличен: {trueOriginalScale} * {dropZone2ScaleMultiplier} = {draggedObject.localScale}");
+                    }
+                    else
+                    {
+                        // Если не в drop zone 2, восстанавливаем исходный масштаб
+                        draggedObject.localScale = trueOriginalScale;
+                        isInDropZone2 = false;
+                        Debug.Log($"Объект {draggedObject.name} помещен в drop zone 1, масштаб восстановлен к исходному: {trueOriginalScale}");
+                    }
+                    
                     // Воспроизводим частицы при успешном отпускании
                     PlayDropParticles(worldPosition);
                     
@@ -191,6 +241,14 @@ public class CursorTagDetector : MonoBehaviour
                 {
                     // Возвращаем объект на исходную позицию
                     draggedObject.position = originalPosition;
+                    
+                    // Восстанавливаем исходный масштаб при возврате
+                    if (useDropZone2ScaleEffect)
+                    {
+                        draggedObject.localScale = trueOriginalScale;
+                        isInDropZone2 = false;
+                        Debug.Log($"Объект {draggedObject.name} возвращен, масштаб восстановлен к исходному: {trueOriginalScale}");
+                    }
                     
                     // Воспроизводим частицы при возврате
                     PlayDropParticles(draggedObject.position);
@@ -211,6 +269,8 @@ public class CursorTagDetector : MonoBehaviour
                     Debug.Log($"Перетаскивание объекта {draggedObject.name} завершено");
                 }
                 
+                // Сбрасываем флаг нахождения в drop zone 2
+                isInDropZone2 = false;
                 isDragging = false;
                 draggedObject = null;
             }
@@ -276,6 +336,7 @@ public class CursorTagDetector : MonoBehaviour
     {
         return IsPositionInZone(position, zone2Center, zone2Size);
     }
+    
     
     
     // Воспроизводит звук поднятия объекта
