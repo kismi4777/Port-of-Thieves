@@ -2163,6 +2163,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1067618421}
   - component: {fileID: 1067618420}
+  - component: {fileID: 1067618422}
   m_Layer: 0
   m_Name: Shift
   m_TagString: Untagged
@@ -2241,6 +2242,24 @@ Transform:
   - {fileID: 1854202935}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1067618422
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1067618419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9df6b2f93c3008b498b648fdd43bf3c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  detectedObjectName: None
+  hasRandomRarityScript: 0
+  detectionRadius: 0.3
+  hideDelayMs: 100
+  displayText: {fileID: 1158600174}
+  rarityText: {fileID: 42101934}
 --- !u!1 &1117756693
 GameObject:
   m_ObjectHideFlags: 0
@@ -2363,8 +2382,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u0421\u0430\u0431\u043B\u044F \u041A\u0430\u043F\u0438\u0442\u0430\u043D\u0430
-    \u0413\u0440\u043E\u0433\u0430"
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 5302535af1044152a457ed104f1f4b91, type: 2}
   m_sharedMaterial: {fileID: 2164040, guid: 5302535af1044152a457ed104f1f4b91, type: 2}
@@ -2391,7 +2409,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 0.2
+  m_fontSize: 36
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
