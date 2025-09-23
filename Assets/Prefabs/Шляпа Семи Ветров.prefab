@@ -275,12 +275,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   assignedRarity: 0
   rarityColors:
-  - {r: 0.85, g: 0.85, b: 0.85, a: 1}
-  - {r: 0.3, g: 0.8, b: 0.3, a: 1}
-  - {r: 0.25, g: 0.5, b: 1, a: 1}
-  - {r: 0.7, g: 0.3, b: 0.9, a: 1}
-  - {r: 1, g: 0.65, b: 0.1, a: 1}
-  - {r: 0.38050312, g: 1, b: 0.97567683, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 0.5647059, g: 1, b: 0.25490198, a: 1}
+  - {r: 0.1254902, g: 0.2509804, b: 1, a: 1}
+  - {r: 0.5686275, g: 0.0627451, b: 0.96862745, a: 1}
+  - {r: 1, g: 0.7058824, b: 0, a: 1}
+  - {r: 0.41568628, g: 0.9647059, b: 1, a: 1}
   colors: []
   stat1: 
   stat2: 
@@ -293,12 +293,12 @@ MonoBehaviour:
   stat4Value: 0
   stat5Value: 0
   assignedColor: {r: 1, g: 1, b: 1, a: 0}
-  commonWeight: 50
-  uncommonWeight: 20
-  rareWeight: 12
-  epicWeight: 8
-  legendaryWeight: 6
-  mythicWeight: 4
+  "\u043E\u0431\u044B\u0447\u043D\u044B\u0439Weight": 50
+  "\u043D\u0435\u043E\u0431\u044B\u0447\u043D\u044B\u0439Weight": 20
+  "\u0440\u0435\u0434\u043A\u0438\u0439Weight": 12
+  "\u044D\u043F\u0438\u0447\u0435\u0441\u043A\u0438\u0439Weight": 8
+  "\u043B\u0435\u0433\u0435\u043D\u0434\u0430\u0440\u043D\u044B\u0439Weight": 6
+  "\u043C\u0438\u0444\u0438\u0447\u0435\u0441\u043A\u0438\u0439Weight": 4
 --- !u!222 &966722655881543295
 CanvasRenderer:
   m_ObjectHideFlags: 0
