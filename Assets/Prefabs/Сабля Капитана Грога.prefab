@@ -184,6 +184,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5024676034579199442}
   - component: {fileID: -3701788784036085055}
+  - component: {fileID: -3774680146537888015}
   m_Layer: 0
   m_Name: "\u0421\u0430\u0431\u043B\u044F \u041A\u0430\u043F\u0438\u0442\u0430\u043D\u0430
     \u0413\u0440\u043E\u0433\u0430"
@@ -255,3 +256,31 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!114 &-3774680146537888015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7332187962716935038}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 580af52cdf2d0d54ab1da78853ecb937, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  assignedRarity: 0
+  rarityColors:
+  - {r: 0.85, g: 0.85, b: 0.85, a: 1}
+  - {r: 0.3, g: 0.8, b: 0.3, a: 1}
+  - {r: 0.25, g: 0.5, b: 1, a: 1}
+  - {r: 0.7, g: 0.3, b: 0.9, a: 1}
+  - {r: 1, g: 0.65, b: 0.1, a: 1}
+  - {r: 0.38050312, g: 1, b: 0.97567683, a: 1}
+  colors: []
+  assignedColor: {r: 1, g: 1, b: 1, a: 0}
+  commonWeight: 50
+  uncommonWeight: 20
+  rareWeight: 12
+  epicWeight: 8
+  legendaryWeight: 6
+  mythicWeight: 4
