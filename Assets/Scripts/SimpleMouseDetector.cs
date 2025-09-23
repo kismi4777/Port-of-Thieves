@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
+using UnityEngine.UI;
 
 public class SimpleMouseDetector : MonoBehaviour
 {
@@ -16,6 +17,7 @@ public class SimpleMouseDetector : MonoBehaviour
     [Header("UI Display")]
     [SerializeField] private TextMeshProUGUI displayText;
     [SerializeField] private TextMeshProUGUI rarityText;
+    [SerializeField] private TextMeshProUGUI objectTextDisplay;
     
     [Header("Stats Display")]
     [SerializeField] private TextMeshProUGUI stat1Text;
@@ -31,6 +33,10 @@ public class SimpleMouseDetector : MonoBehaviour
     [SerializeField] private TextMeshProUGUI stat4ValueText;
     [SerializeField] private TextMeshProUGUI stat5ValueText;
     
+    [Header("Mouse Control")]
+    [SerializeField] private GameObject controlledObject;
+    [SerializeField] private float holdTimeRequired = 0.5f; // Время удержания в секундах
+    
     private Camera mainCamera;
     private Mouse mouse;
     private float hideTimer = 0f;
@@ -38,6 +44,10 @@ public class SimpleMouseDetector : MonoBehaviour
     private string lastDisplayedName = "None";
     private string lastRarity = "";
     private Collider2D currentDetectedCollider;
+    
+    // Переменные для управления объектом
+    private float mouseHoldTimer = 0f;
+    private bool isMouseHeld = false;
     
     void Start()
     {
@@ -53,6 +63,7 @@ public class SimpleMouseDetector : MonoBehaviour
     void Update()
     {
         DetectObjectUnderMouse();
+        HandleMouseControl();
     }
     
     private void DetectObjectUnderMouse()
@@ -170,7 +181,10 @@ public class SimpleMouseDetector : MonoBehaviour
                     rarityText.color = rarityColor;
                     
                     // Отображаем статы объекта
-                    UpdateStatsDisplay(rarityScript, rarityColor);
+                    UpdateStatsDisplay(rarityScript);
+                    
+                    // Отображаем текст с компонента Text объекта
+                    UpdateObjectTextDisplay();
                 }
                 else
                 {
@@ -179,6 +193,7 @@ public class SimpleMouseDetector : MonoBehaviour
                     displayText.color = Color.white;
                     rarityText.color = Color.white;
                     ClearStatsDisplay();
+                    ClearObjectTextDisplay();
                 }
             }
             else
@@ -188,11 +203,12 @@ public class SimpleMouseDetector : MonoBehaviour
                 displayText.color = Color.white;
                 rarityText.color = Color.white;
                 ClearStatsDisplay();
+                ClearObjectTextDisplay();
             }
         }
     }
     
-    private void UpdateStatsDisplay(RandomRarityOnSpawn rarityScript, Color rarityColor)
+    private void UpdateStatsDisplay(RandomRarityOnSpawn rarityScript)
     {
         // Обновляем стат 1
         if (stat1Text != null)
@@ -200,7 +216,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat1))
             {
                 stat1Text.text = rarityScript.stat1;
-                stat1Text.color = rarityColor;
             }
             else
             {
@@ -214,7 +229,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat1))
             {
                 stat1ValueText.text = $"+{rarityScript.stat1Value}";
-                stat1ValueText.color = rarityColor;
             }
             else
             {
@@ -228,7 +242,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat2))
             {
                 stat2Text.text = rarityScript.stat2;
-                stat2Text.color = rarityColor;
             }
             else
             {
@@ -242,7 +255,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat2))
             {
                 stat2ValueText.text = $"+{rarityScript.stat2Value}";
-                stat2ValueText.color = rarityColor;
             }
             else
             {
@@ -256,7 +268,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat3))
             {
                 stat3Text.text = rarityScript.stat3;
-                stat3Text.color = rarityColor;
             }
             else
             {
@@ -270,7 +281,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat3))
             {
                 stat3ValueText.text = $"+{rarityScript.stat3Value}";
-                stat3ValueText.color = rarityColor;
             }
             else
             {
@@ -284,7 +294,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat4))
             {
                 stat4Text.text = rarityScript.stat4;
-                stat4Text.color = rarityColor;
             }
             else
             {
@@ -298,7 +307,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat4))
             {
                 stat4ValueText.text = $"+{rarityScript.stat4Value}";
-                stat4ValueText.color = rarityColor;
             }
             else
             {
@@ -312,7 +320,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat5))
             {
                 stat5Text.text = rarityScript.stat5;
-                stat5Text.color = rarityColor;
             }
             else
             {
@@ -326,7 +333,6 @@ public class SimpleMouseDetector : MonoBehaviour
             if (!string.IsNullOrEmpty(rarityScript.stat5))
             {
                 stat5ValueText.text = $"+{rarityScript.stat5Value}";
-                stat5ValueText.color = rarityColor;
             }
             else
             {
@@ -348,5 +354,70 @@ public class SimpleMouseDetector : MonoBehaviour
         if (stat3ValueText != null) stat3ValueText.text = "";
         if (stat4ValueText != null) stat4ValueText.text = "";
         if (stat5ValueText != null) stat5ValueText.text = "";
+    }
+    
+    private void UpdateObjectTextDisplay()
+    {
+        if (objectTextDisplay != null && currentDetectedCollider != null)
+        {
+            // Ищем компонент Text на обнаруженном объекте
+            Text objectText = currentDetectedCollider.GetComponent<Text>();
+            if (objectText != null)
+            {
+                objectTextDisplay.text = objectText.text;
+            }
+            else
+            {
+                objectTextDisplay.text = "";
+            }
+        }
+    }
+    
+    private void ClearObjectTextDisplay()
+    {
+        if (objectTextDisplay != null)
+        {
+            objectTextDisplay.text = "";
+        }
+    }
+    
+    private void HandleMouseControl()
+    {
+        if (mouse == null || controlledObject == null) return;
+        
+        bool leftMousePressed = mouse.leftButton.isPressed;
+        
+        if (leftMousePressed)
+        {
+            // Левая кнопка мыши зажата
+            if (!isMouseHeld)
+            {
+                // Начинаем отсчет времени удержания
+                isMouseHeld = true;
+                mouseHoldTimer = 0f;
+            }
+            else
+            {
+                // Увеличиваем таймер удержания
+                mouseHoldTimer += Time.deltaTime;
+                
+                // Если удержали достаточно долго - включаем объект
+                if (mouseHoldTimer >= holdTimeRequired)
+                {
+                    controlledObject.SetActive(true);
+                }
+            }
+        }
+        else
+        {
+            // Левая кнопка мыши отпущена
+            if (isMouseHeld)
+            {
+                // Сбрасываем состояние и выключаем объект
+                isMouseHeld = false;
+                mouseHoldTimer = 0f;
+                controlledObject.SetActive(false);
+            }
+        }
     }
 }
