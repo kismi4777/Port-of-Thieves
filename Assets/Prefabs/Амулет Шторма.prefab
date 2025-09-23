@@ -185,6 +185,8 @@ GameObject:
   - component: {fileID: 5024676034579199442}
   - component: {fileID: 7104670144688229045}
   - component: {fileID: -6102667608762245669}
+  - component: {fileID: 1243909791564121877}
+  - component: {fileID: 906866054272289189}
   m_Layer: 0
   m_Name: "\u0410\u043C\u0443\u043B\u0435\u0442 \u0428\u0442\u043E\u0440\u043C\u0430"
   m_TagString: Obj
@@ -192,14 +194,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5024676034579199442
-Transform:
+--- !u!224 &5024676034579199442
+RectTransform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7332187962716935038}
-  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -209,6 +210,11 @@ Transform:
   - {fileID: 6859325684938436674}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!61 &7104670144688229045
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -276,6 +282,16 @@ MonoBehaviour:
   - {r: 1, g: 0.65, b: 0.1, a: 1}
   - {r: 0.38050312, g: 1, b: 0.97567683, a: 1}
   colors: []
+  stat1: 
+  stat2: 
+  stat3: 
+  stat4: 
+  stat5: 
+  stat1Value: 0
+  stat2Value: 0
+  stat3Value: 0
+  stat4Value: 0
+  stat5Value: 0
   assignedColor: {r: 1, g: 1, b: 1, a: 0}
   commonWeight: 50
   uncommonWeight: 20
@@ -283,3 +299,51 @@ MonoBehaviour:
   epicWeight: 8
   legendaryWeight: 6
   mythicWeight: 4
+--- !u!222 &1243909791564121877
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7332187962716935038}
+  m_CullTransparentMesh: 1
+--- !u!114 &906866054272289189
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7332187962716935038}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 12800000, guid: f4eec857a4fdf2f43be0e9f3d1a984e7, type: 3}
+    m_FontSize: 14
+    m_FontStyle: 0
+    m_BestFit: 0
+    m_MinSize: 10
+    m_MaxSize: 40
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: "\u0411\u043B\u0435\u0441\u0442\u0438\u0442 \u0442\u0430\u043A, \u0447\u0442\u043E
+    \u0447\u0430\u0439\u043A\u0438 \u0443\u0436\u0435 \u0441\u0442\u0440\u043E\u044F\u0442
+    \u043F\u043B\u0430\u043D\u044B. \u0412\u043D\u0443\u0442\u0440\u0438 \u0431\u044C\u0451\u0442\u0441\u044F
+    \u043C\u043E\u043B\u043D\u0438\u044F, \u043A\u0430\u043A \u043F\u044C\u044F\u043D\u044B\u0439
+    \u0431\u043E\u0446\u043C\u0430\u043D, \u0438\u043D\u043E\u0433\u0434\u0430 \u043C\u043E\u0436\u0435\u0442
+    \u043F\u043E\u0434\u0436\u0430\u0440\u0438\u0442\u044C \u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u0443
+    \u0431\u0440\u043E\u0432\u0438."

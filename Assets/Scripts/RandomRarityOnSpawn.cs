@@ -2,14 +2,37 @@ using UnityEngine;
 
 public class RandomRarityOnSpawn : MonoBehaviour
 {
+	private static readonly string[] AllCharacteristicsRu = new string[]
+	{
+		"Физический урон",
+		"Магический урон",
+		"Скорость атаки",
+		"Критический шанс",
+		"Критический урон",
+		"Физическая защита",
+		"Магическая защита",
+		"Сопротивление огню",
+		"Сопротивление яду",
+		"Блокирование",
+		"Поглощение урона",
+		"Скорость передвижения",
+		"Вампиризм Жизни",
+		"Вампиризм Маны",
+		"Сопротивление оглушению",
+		"Сопротивление замедлению",
+		"Отражение урона",
+		"Регенерация здоровья",
+		"Регенерация маны"
+	};
+
 	public enum Rarity
 	{
-		Common,      // Обычный
-		Uncommon,    // Необычный
-		Rare,        // Редкий
-		Epic,        // Эпический
-		Legendary,   // Легендарный
-		Mythic       // Мифический
+		Обычный,
+		Необычный,
+		Редкий,
+		Эпический,
+		Легендарный,
+		Мифический
 	}
 
 	[SerializeField]
@@ -31,16 +54,30 @@ public class RandomRarityOnSpawn : MonoBehaviour
 	[SerializeField]
 	private System.Collections.Generic.List<Color> colors = new System.Collections.Generic.List<Color>();
 
+	[Header("Характеристики предмета (макс 5, мин 1 по редкости)")]
+	public string stat1 = "";
+	public string stat2 = "";
+	public string stat3 = "";
+	public string stat4 = "";
+	public string stat5 = "";
+
+	[Header("Значения характеристик (1-100)")]
+	public int stat1Value = 0;
+	public int stat2Value = 0;
+	public int stat3Value = 0;
+	public int stat4Value = 0;
+	public int stat5Value = 0;
+
 	[SerializeField]
 	private Color assignedColor;
 
 	[Header("Вес выпадения (чем больше вес — тем чаще)")]
-	[SerializeField] private float commonWeight = 50f;     // Обычный
-	[SerializeField] private float uncommonWeight = 20f;   // Необычный
-	[SerializeField] private float rareWeight = 12f;       // Редкий
-	[SerializeField] private float epicWeight = 8f;        // Эпический
-	[SerializeField] private float legendaryWeight = 6f;   // Легендарный
-	[SerializeField] private float mythicWeight = 4f;      // Мифический
+	[SerializeField] private float обычныйWeight = 50f;     // Обычный
+	[SerializeField] private float необычныйWeight = 20f;   // Необычный
+	[SerializeField] private float редкийWeight = 12f;       // Редкий
+	[SerializeField] private float эпическийWeight = 8f;        // Эпический
+	[SerializeField] private float легендарныйWeight = 6f;   // Легендарный
+	[SerializeField] private float мифическийWeight = 4f;      // Мифический
 
 	public Rarity AssignedRarity => assignedRarity;
 	public Color AssignedColor => assignedColor;
@@ -54,22 +91,23 @@ public class RandomRarityOnSpawn : MonoBehaviour
 	{
 		float[] weights = new float[]
 		{
-			Mathf.Max(0f, commonWeight),
-			Mathf.Max(0f, uncommonWeight),
-			Mathf.Max(0f, rareWeight),
-			Mathf.Max(0f, epicWeight),
-			Mathf.Max(0f, legendaryWeight),
-			Mathf.Max(0f, mythicWeight)
+			Mathf.Max(0f, обычныйWeight),
+			Mathf.Max(0f, необычныйWeight),
+			Mathf.Max(0f, редкийWeight),
+			Mathf.Max(0f, эпическийWeight),
+			Mathf.Max(0f, легендарныйWeight),
+			Mathf.Max(0f, мифическийWeight)
 		};
 
 		float total = 0f;
 		for (int i = 0; i < weights.Length; i++) total += weights[i];
 		if (total <= 0f)
 		{
-			assignedRarity = Rarity.Common;
+			assignedRarity = Rarity.Обычный;
 			assignedColor = GetColorForRarity(assignedRarity);
 			colors.Clear();
 			colors.Add(assignedColor);
+			AssignCharacteristicsForRarity();
 			return;
 		}
 
@@ -84,14 +122,16 @@ public class RandomRarityOnSpawn : MonoBehaviour
 				assignedColor = GetColorForRarity(assignedRarity);
 				colors.Clear();
 				colors.Add(assignedColor);
+				AssignCharacteristicsForRarity();
 				return;
 			}
 		}
 
-		assignedRarity = Rarity.Mythic;
+		assignedRarity = Rarity.Мифический;
 		assignedColor = GetColorForRarity(assignedRarity);
 		colors.Clear();
 		colors.Add(assignedColor);
+		AssignCharacteristicsForRarity();
 	}
 
 
@@ -103,6 +143,81 @@ public class RandomRarityOnSpawn : MonoBehaviour
 			return rarityColors[index];
 		}
 		return Color.white;
+	}
+
+	private void AssignCharacteristicsForRarity()
+	{
+		int count = GetCharacteristicCountForRarity(assignedRarity);
+		string[] pool = new string[AllCharacteristicsRu.Length];
+		for (int i = 0; i < AllCharacteristicsRu.Length; i++) pool[i] = AllCharacteristicsRu[i];
+		Shuffle(pool);
+
+		// Сбрасываем все слоты в пустые строки и нули значений
+		stat1 = ""; stat2 = ""; stat3 = ""; stat4 = ""; stat5 = "";
+		stat1Value = 0; stat2Value = 0; stat3Value = 0; stat4Value = 0; stat5Value = 0;
+
+		// Назначаем уникальные характеристики согласно count
+		if (count >= 1 && pool.Length > 0) { stat1 = pool[0]; stat1Value = GetRandomValueForRarity(assignedRarity); }
+		if (count >= 2 && pool.Length > 1) { stat2 = pool[1]; stat2Value = GetRandomValueForRarity(assignedRarity); }
+		if (count >= 3 && pool.Length > 2) { stat3 = pool[2]; stat3Value = GetRandomValueForRarity(assignedRarity); }
+		if (count >= 4 && pool.Length > 3) { stat4 = pool[3]; stat4Value = GetRandomValueForRarity(assignedRarity); }
+		if (count >= 5 && pool.Length > 4) { stat5 = pool[4]; stat5Value = GetRandomValueForRarity(assignedRarity); }
+	}
+
+	private int GetCharacteristicCountForRarity(Rarity rarity)
+	{
+		switch (rarity)
+		{
+			case Rarity.Обычный: return 1;
+			case Rarity.Необычный: return 2;
+			case Rarity.Редкий: return 3;
+			case Rarity.Эпический: return 4;
+			case Rarity.Легендарный: return 5;
+			case Rarity.Мифический: return 5;
+			default: return 1;
+		}
+	}
+
+	private void Shuffle<T>(T[] array)
+	{
+		for (int i = array.Length - 1; i > 0; i--)
+		{
+			int j = Random.Range(0, i + 1);
+			T tmp = array[i];
+			array[i] = array[j];
+			array[j] = tmp;
+		}
+	}
+
+	private int GetRandomValueForRarity(Rarity rarity)
+	{
+		int maxValue = 15;
+		switch (rarity)
+		{
+			case Rarity.Обычный: maxValue = 15; break;      // до 15
+			case Rarity.Необычный: maxValue = 20; break;    // до 20
+			case Rarity.Редкий: maxValue = 35; break;        // до 35
+			case Rarity.Эпический: maxValue = 45; break;        // до 45
+			case Rarity.Легендарный: maxValue = 60; break;   // до 60
+			case Rarity.Мифический: maxValue = 99; break;      // до 99
+		}
+		
+		float randomFloat = Random.value;
+		
+		// Для низких редкостей - уклон к низким значениям (квадрат)
+		// Для высоких редкостей - уклон к высоким значениям (инвертированный квадрат)
+		if ((int)rarity <= 1) // Обычный, Необычный - низкие значения чаще
+		{
+			randomFloat = randomFloat * randomFloat;
+		}
+		else if ((int)rarity >= 4) // Легендарный, Мифический - высокие значения чаще
+		{
+			randomFloat = 1f - (1f - randomFloat) * (1f - randomFloat);
+		}
+		// Редкий, Эпический - равномерное распределение
+		
+		int value = Mathf.RoundToInt(randomFloat * (maxValue - 1)) + 1; // 1..maxValue
+		return value;
 	}
 }
 
