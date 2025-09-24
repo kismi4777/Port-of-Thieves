@@ -18,6 +18,7 @@ public class SimpleMouseDetector : MonoBehaviour
     [SerializeField] private TextMeshProUGUI displayText;
     [SerializeField] private TextMeshProUGUI rarityText;
     [SerializeField] private TextMeshProUGUI objectTextDisplay;
+    [SerializeField] private Image objectImageDisplay;
     
     [Header("Stats Display")]
     [SerializeField] private TextMeshProUGUI stat1Text;
@@ -185,6 +186,9 @@ public class SimpleMouseDetector : MonoBehaviour
                     
                     // Отображаем текст с компонента Text объекта
                     UpdateObjectTextDisplay();
+                    
+                    // Отображаем изображение с дочернего объекта "image"
+                    UpdateObjectImageDisplay();
                 }
                 else
                 {
@@ -194,6 +198,7 @@ public class SimpleMouseDetector : MonoBehaviour
                     rarityText.color = Color.white;
                     ClearStatsDisplay();
                     ClearObjectTextDisplay();
+                    ClearObjectImageDisplay();
                 }
             }
             else
@@ -204,6 +209,7 @@ public class SimpleMouseDetector : MonoBehaviour
                 rarityText.color = Color.white;
                 ClearStatsDisplay();
                 ClearObjectTextDisplay();
+                ClearObjectImageDisplay();
             }
         }
     }
@@ -378,6 +384,40 @@ public class SimpleMouseDetector : MonoBehaviour
         if (objectTextDisplay != null)
         {
             objectTextDisplay.text = "";
+        }
+    }
+    
+    private void UpdateObjectImageDisplay()
+    {
+        if (objectImageDisplay != null && currentDetectedCollider != null)
+        {
+            // Ищем дочерний объект с именем "Image"
+            Transform imageChild = currentDetectedCollider.transform.Find("Image");
+            if (imageChild != null)
+            {
+                // Ищем компонент SpriteRenderer на дочернем объекте
+                SpriteRenderer childSpriteRenderer = imageChild.GetComponent<SpriteRenderer>();
+                if (childSpriteRenderer != null)
+                {
+                    objectImageDisplay.sprite = childSpriteRenderer.sprite;
+                }
+                else
+                {
+                    objectImageDisplay.sprite = null;
+                }
+            }
+            else
+            {
+                objectImageDisplay.sprite = null;
+            }
+        }
+    }
+    
+    private void ClearObjectImageDisplay()
+    {
+        if (objectImageDisplay != null)
+        {
+            objectImageDisplay.sprite = null;
         }
     }
     
