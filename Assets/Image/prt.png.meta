@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: fc7c6315d66a9994fb047d436da22f3c
+guid: 730df7b56829ede4d94fae4981e7f0c6
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -69,11 +69,11 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
+    textureCompression: 3
+    compressionQuality: 100
     crunchedCompression: 1
     allowsAlphaSplitting: 0
     overridden: 0
@@ -110,23 +110,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Copilot_20250915_033730_0
+      name: prt_0
       rect:
         serializedVersion: 2
-        x: 212
-        y: 50
-        width: 604
-        height: 953
+        x: 303
+        y: 0
+        width: 1463
+        height: 2036
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: a6c402c5c95d1c0479965de147e28239
-      internalID: 832104521
+      spriteID: 5531c7ba16ca10f4ea7ac9703cecd2e9
+      internalID: 273647621
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 9e1aad779cf3e6c428069dada3e59f5d
+    spriteID: 9555ce0ebe65c9a47978eda4b0b9b88e
     internalID: 0
     vertices: []
     indices: 
@@ -145,7 +145,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Copilot_20250915_033730_0: 832104521
+      prt_0: 273647621
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
