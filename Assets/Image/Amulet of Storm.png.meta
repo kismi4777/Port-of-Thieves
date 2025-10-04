@@ -113,12 +113,12 @@ TextureImporter:
       name: Copilot_20250915_235632_0
       rect:
         serializedVersion: 2
-        x: 20
-        y: 117
-        width: 979
-        height: 1332
+        x: 0
+        y: 0
+        width: 2048
+        height: 2048
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []

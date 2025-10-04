@@ -33,6 +33,12 @@ public class PrefabSpawner : MonoBehaviour
     [Header("Drop Zone Integration")]
     public CursorTagDetector cursorDetector; // Ссылка на CursorTagDetector для проверки drop zone
     
+    [Header("Расширенная рандомизация")]
+    public bool useAdvancedRandomization = true; // Включить расширенную рандомизацию
+    public int maxRecentSpawns = 3; // Максимальное количество последних заспавненных объектов для отслеживания
+    public bool prioritizeObjectsNotOnScene = true; // Приоритет для объектов которых нет на сцене
+    public float sceneCheckRadius = 2f; // Радиус проверки наличия объектов на сцене
+    
     public enum SpawnPointMode
     {
         Random,     // Случайный спавн поинт
@@ -62,8 +68,18 @@ public class PrefabSpawner : MonoBehaviour
     private List<SpawnedObjectInfo> spawnedObjects = new List<SpawnedObjectInfo>();
     private int currentSpawnIndex = 0;
     
+    // Система расширенной рандомизации
+    private List<GameObject> recentSpawnedPrefabs = new List<GameObject>(); // Последние заспавненные префабы
+    private List<GameObject> availablePrefabs = new List<GameObject>(); // Доступные для спавна префабы
+    
+    // Система приоритета объектов на сцене
+    private Dictionary<GameObject, int> prefabsOnSceneCount = new Dictionary<GameObject, int>(); // Количество объектов каждого типа на сцене
+    
     void Start()
     {
+        // Инициализация системы рандомизации
+        InitializeRandomizationSystem();
+        
         if (spawnOnStart)
         {
             if (spawnDelay > 0)
@@ -154,6 +170,308 @@ public class PrefabSpawner : MonoBehaviour
         return objectLifetime;
     }
     
+    // Инициализация системы расширенной рандомизации
+    void InitializeRandomizationSystem()
+    {
+        if (prefabsToSpawn != null && prefabsToSpawn.Length > 0)
+        {
+            availablePrefabs.Clear();
+            recentSpawnedPrefabs.Clear();
+            prefabsOnSceneCount.Clear();
+            
+            // Копируем все префабы в список доступных
+            foreach (GameObject prefab in prefabsToSpawn)
+            {
+                if (prefab != null)
+                {
+                    availablePrefabs.Add(prefab);
+                    prefabsOnSceneCount[prefab] = 0; // Инициализируем счетчик объектов на сцене
+                }
+            }
+            
+            Debug.Log($"Система рандомизации инициализирована. Доступно префабов: {availablePrefabs.Count}");
+        }
+    }
+    
+    // Получение префаба с учетом расширенной рандомизации
+    GameObject GetRandomPrefabWithAdvancedRandomization()
+    {
+        if (!useAdvancedRandomization || prefabsToSpawn == null || prefabsToSpawn.Length == 0)
+        {
+            // Если расширенная рандомизация отключена, используем обычный случайный выбор
+            return prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
+        }
+        
+        // Обновляем счетчики объектов на сцене
+        UpdateSceneObjectCounts();
+        
+        // Обновляем список доступных префабов
+        UpdateAvailablePrefabs();
+        
+        if (availablePrefabs.Count == 0)
+        {
+            // Если все префабы уже заспавнены, сбрасываем список и начинаем заново
+            ResetAvailablePrefabs();
+            Debug.Log("Все префабы заспавнены, сбрасываем список доступных");
+        }
+        
+        GameObject selectedPrefab = null;
+        
+        // Приоритет для объектов которых нет на сцене
+        if (prioritizeObjectsNotOnScene && HasPrefabsNotOnScene())
+        {
+            List<GameObject> notOnScenePrefabs = GetPrefabsNotOnScene();
+            // Фильтруем только те, которые доступны для спавна И не в последних заспавненных
+            List<GameObject> availableNotOnScene = new List<GameObject>();
+            foreach (GameObject prefab in notOnScenePrefabs)
+            {
+                if (availablePrefabs.Contains(prefab) && !recentSpawnedPrefabs.Contains(prefab))
+                {
+                    availableNotOnScene.Add(prefab);
+                }
+            }
+            
+            if (availableNotOnScene.Count > 0)
+            {
+                selectedPrefab = availableNotOnScene[Random.Range(0, availableNotOnScene.Count)];
+                Debug.Log($"Выбран приоритетный префаб (не на сцене): {selectedPrefab.name}");
+            }
+        }
+        
+        // Если приоритетный выбор не сработал, используем обычную логику
+        if (selectedPrefab == null)
+        {
+            selectedPrefab = availablePrefabs[Random.Range(0, availablePrefabs.Count)];
+            Debug.Log($"Выбран обычный префаб: {selectedPrefab.name}");
+        }
+        
+        // Добавляем в список последних заспавненных
+        AddToRecentSpawns(selectedPrefab);
+        
+        // Удаляем из доступных (чтобы не спавнить повторно)
+        availablePrefabs.Remove(selectedPrefab);
+        
+        Debug.Log($"Выбран префаб: {selectedPrefab.name}. Осталось доступных: {availablePrefabs.Count}");
+        
+        return selectedPrefab;
+    }
+    
+    // Обновление списка доступных префабов
+    void UpdateAvailablePrefabs()
+    {
+        // Если все префабы уже заспавнены, ничего не делаем
+        if (availablePrefabs.Count == 0)
+            return;
+            
+        // Проверяем, есть ли неиспользованные префабы из исходного массива
+        List<GameObject> unusedPrefabs = new List<GameObject>();
+        foreach (GameObject prefab in prefabsToSpawn)
+        {
+            if (prefab != null && !availablePrefabs.Contains(prefab))
+            {
+                // Проверяем, что префаб не в списке последних заспавненных
+                if (!recentSpawnedPrefabs.Contains(prefab))
+                {
+                    unusedPrefabs.Add(prefab);
+                }
+            }
+        }
+        
+        // Если есть неиспользованные префабы, добавляем их в доступные
+        if (unusedPrefabs.Count > 0)
+        {
+            availablePrefabs.AddRange(unusedPrefabs);
+            Debug.Log($"Добавлено {unusedPrefabs.Count} неиспользованных префабов в доступные");
+        }
+    }
+    
+    // Сброс списка доступных префабов
+    void ResetAvailablePrefabs()
+    {
+        availablePrefabs.Clear();
+        foreach (GameObject prefab in prefabsToSpawn)
+        {
+            if (prefab != null)
+            {
+                availablePrefabs.Add(prefab);
+            }
+        }
+    }
+    
+    // Добавление префаба в список последних заспавненных
+    void AddToRecentSpawns(GameObject prefab)
+    {
+        recentSpawnedPrefabs.Add(prefab);
+        
+        // Ограничиваем размер списка
+        if (recentSpawnedPrefabs.Count > maxRecentSpawns)
+        {
+            recentSpawnedPrefabs.RemoveAt(0);
+        }
+        
+        Debug.Log($"Добавлен в последние заспавненные: {prefab.name}. Всего в списке: {recentSpawnedPrefabs.Count}");
+    }
+    
+    // Проверка наличия объектов определенного типа на сцене
+    int CountObjectsOnScene(GameObject prefab)
+    {
+        if (prefab == null) return 0;
+        
+        int count = 0;
+        string prefabName = prefab.name;
+        
+        // Используем отслеживание через spawnedObjects для производительности
+        foreach (SpawnedObjectInfo objInfo in spawnedObjects)
+        {
+            if (objInfo.obj != null && (objInfo.obj.name == prefabName || objInfo.obj.name == prefabName + "(Clone)"))
+            {
+                count++;
+            }
+        }
+        
+        return count;
+    }
+    
+    // Обновление счетчика объектов на сцене
+    void UpdateSceneObjectCounts()
+    {
+        if (!prioritizeObjectsNotOnScene) return;
+        
+        foreach (GameObject prefab in prefabsToSpawn)
+        {
+            if (prefab != null)
+            {
+                prefabsOnSceneCount[prefab] = CountObjectsOnScene(prefab);
+            }
+        }
+    }
+    
+    // Получение префабов которых нет на сцене
+    List<GameObject> GetPrefabsNotOnScene()
+    {
+        List<GameObject> notOnScene = new List<GameObject>();
+        
+        foreach (GameObject prefab in prefabsToSpawn)
+        {
+            if (prefab != null && prefabsOnSceneCount.ContainsKey(prefab) && prefabsOnSceneCount[prefab] == 0)
+            {
+                notOnScene.Add(prefab);
+            }
+        }
+        
+        return notOnScene;
+    }
+    
+    // Проверка, есть ли объекты которых нет на сцене
+    bool HasPrefabsNotOnScene()
+    {
+        return GetPrefabsNotOnScene().Count > 0;
+    }
+    
+    // Получение уникальных префабов для спавна на всех точках
+    List<GameObject> GetUniquePrefabsForAllPointsSpawn()
+    {
+        List<GameObject> result = new List<GameObject>();
+        
+        if (!useAdvancedRandomization || prefabsToSpawn == null || prefabsToSpawn.Length == 0)
+        {
+            // Если расширенная рандомизация отключена, используем обычный случайный выбор
+            for (int i = 0; i < spawnPoints.Length; i++)
+            {
+                result.Add(prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)]);
+            }
+            return result;
+        }
+        
+        // Обновляем счетчики объектов на сцене
+        UpdateSceneObjectCounts();
+        
+        // Обновляем список доступных префабов
+        UpdateAvailablePrefabs();
+        
+        // Если все префабы уже заспавнены, сбрасываем список
+        if (availablePrefabs.Count == 0)
+        {
+            ResetAvailablePrefabs();
+            Debug.Log("Все префабы заспавнены, сбрасываем список доступных для AllPoints спавна");
+        }
+        
+        // Создаем список префабов с приоритетом для объектов которых нет на сцене
+        List<GameObject> prioritizedPrefabs = new List<GameObject>();
+        
+        if (prioritizeObjectsNotOnScene && HasPrefabsNotOnScene())
+        {
+            // Сначала добавляем префабы которых нет на сцене
+            List<GameObject> notOnScenePrefabs = GetPrefabsNotOnScene();
+            foreach (GameObject prefab in notOnScenePrefabs)
+            {
+                if (availablePrefabs.Contains(prefab) && !recentSpawnedPrefabs.Contains(prefab))
+                {
+                    prioritizedPrefabs.Add(prefab);
+                }
+            }
+            
+            // Затем добавляем остальные доступные префабы
+            foreach (GameObject prefab in availablePrefabs)
+            {
+                if (!prioritizedPrefabs.Contains(prefab) && !recentSpawnedPrefabs.Contains(prefab))
+                {
+                    prioritizedPrefabs.Add(prefab);
+                }
+            }
+        }
+        else
+        {
+            // Если приоритет отключен, используем все доступные префабы (исключая последние заспавненные)
+            foreach (GameObject prefab in availablePrefabs)
+            {
+                if (!recentSpawnedPrefabs.Contains(prefab))
+                {
+                    prioritizedPrefabs.Add(prefab);
+                }
+            }
+        }
+        
+        // Перемешиваем список для случайности
+        for (int i = 0; i < prioritizedPrefabs.Count; i++)
+        {
+            GameObject temp = prioritizedPrefabs[i];
+            int randomIndex = Random.Range(i, prioritizedPrefabs.Count);
+            prioritizedPrefabs[i] = prioritizedPrefabs[randomIndex];
+            prioritizedPrefabs[randomIndex] = temp;
+        }
+        
+        // Заполняем результат уникальными префабами
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            if (i < prioritizedPrefabs.Count)
+            {
+                // Используем уникальный префаб
+                result.Add(prioritizedPrefabs[i]);
+            }
+            else
+            {
+                // Если точек спавна больше чем префабов, циклически повторяем
+                result.Add(prioritizedPrefabs[i % prioritizedPrefabs.Count]);
+            }
+        }
+        
+        // Обновляем систему рандомизации - удаляем использованные префабы (без дублирования)
+        HashSet<GameObject> usedPrefabsSet = new HashSet<GameObject>(result);
+        foreach (GameObject usedPrefab in usedPrefabsSet)
+        {
+            if (availablePrefabs.Contains(usedPrefab))
+            {
+                availablePrefabs.Remove(usedPrefab);
+                AddToRecentSpawns(usedPrefab);
+            }
+        }
+        
+        Debug.Log($"Подготовлено {result.Count} уникальных префабов для AllPoints спавна. Осталось доступных: {availablePrefabs.Count}");
+        
+        return result;
+    }
+    
     IEnumerator DropZone2CleanupRoutine()
     {
         while (true)
@@ -219,7 +537,7 @@ public class PrefabSpawner : MonoBehaviour
             return;
         }
         
-        GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
+        GameObject prefabToSpawn = GetRandomPrefabWithAdvancedRandomization();
         Vector3 spawnPosition = GetSpawnPosition();
         GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPosition, Quaternion.identity);
         
@@ -260,12 +578,17 @@ public class PrefabSpawner : MonoBehaviour
             return;
         }
         
+        // Для режима AllPoints используем специальную логику без дублирования
+        List<GameObject> prefabsForThisSpawn = GetUniquePrefabsForAllPointsSpawn();
+        
         // Спавним префаб на каждой точке спавна
         for (int i = 0; i < spawnPoints.Length; i++)
         {
             if (spawnPoints[i] != null)
             {
-                GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
+                // Выбираем префаб из подготовленного списка (с циклическим повторением если нужно)
+                GameObject prefabToSpawn = prefabsForThisSpawn[i % prefabsForThisSpawn.Count];
+                
                 GameObject spawnedObject = Instantiate(prefabToSpawn, spawnPoints[i].position, Quaternion.identity);
                 
                 // Убираем суффикс "(Clone)" из имени объекта
@@ -328,7 +651,7 @@ public class PrefabSpawner : MonoBehaviour
             return;
         }
         
-        GameObject prefabToSpawn = prefabsToSpawn[Random.Range(0, prefabsToSpawn.Length)];
+        GameObject prefabToSpawn = GetRandomPrefabWithAdvancedRandomization();
         GameObject spawnedObject = Instantiate(prefabToSpawn, position, Quaternion.identity);
         
         // Убираем суффикс "(Clone)" из имени объекта
@@ -429,6 +752,17 @@ public class PrefabSpawner : MonoBehaviour
             }
         }
         
+        // Обновляем систему рандомизации для конкретного префаба
+        if (useAdvancedRandomization)
+        {
+            GameObject specificPrefab = prefabsToSpawn[prefabIndex];
+            if (availablePrefabs.Contains(specificPrefab))
+            {
+                availablePrefabs.Remove(specificPrefab);
+                AddToRecentSpawns(specificPrefab);
+            }
+        }
+        
         // Запускаем таймер для drop zone 2 cleanup
         if (enableDropZone2Cleanup)
         {
@@ -448,6 +782,15 @@ public class PrefabSpawner : MonoBehaviour
                 Destroy(objInfo.obj);
         }
         spawnedObjects.Clear();
+        
+        // Сбрасываем систему рандомизации при очистке всех объектов
+        if (useAdvancedRandomization)
+        {
+            ResetAvailablePrefabs();
+            recentSpawnedPrefabs.Clear();
+            prefabsOnSceneCount.Clear();
+            Debug.Log("Система рандомизации сброшена после очистки всех объектов");
+        }
     }
     
     public int GetSpawnedObjectsCount()
@@ -647,6 +990,92 @@ public class PrefabSpawner : MonoBehaviour
         return spawnPoints != null ? spawnPoints.Length : 0;
     }
     
+    // Методы управления системой рандомизации
+    public void SetAdvancedRandomization(bool enabled)
+    {
+        useAdvancedRandomization = enabled;
+        if (enabled)
+        {
+            InitializeRandomizationSystem();
+        }
+        else
+        {
+            availablePrefabs.Clear();
+            recentSpawnedPrefabs.Clear();
+        }
+        Debug.Log($"Расширенная рандомизация {(enabled ? "включена" : "отключена")}");
+    }
+    
+    public void SetMaxRecentSpawns(int maxSpawns)
+    {
+        maxRecentSpawns = Mathf.Max(1, maxSpawns);
+        Debug.Log($"Максимальное количество последних заспавненных объектов установлено: {maxRecentSpawns}");
+    }
+    
+    public void ResetRandomizationSystem()
+    {
+        if (useAdvancedRandomization)
+        {
+            InitializeRandomizationSystem();
+            Debug.Log("Система рандомизации сброшена");
+        }
+    }
+    
+    public int GetAvailablePrefabsCount()
+    {
+        return availablePrefabs.Count;
+    }
+    
+    public int GetRecentSpawnsCount()
+    {
+        return recentSpawnedPrefabs.Count;
+    }
+    
+    public List<GameObject> GetRecentSpawnedPrefabs()
+    {
+        return new List<GameObject>(recentSpawnedPrefabs);
+    }
+    
+    // Методы управления приоритетом объектов на сцене
+    public void SetScenePriority(bool enabled)
+    {
+        prioritizeObjectsNotOnScene = enabled;
+        if (enabled)
+        {
+            UpdateSceneObjectCounts();
+        }
+        Debug.Log($"Приоритет объектов на сцене {(enabled ? "включен" : "отключен")}");
+    }
+    
+    public void SetSceneCheckRadius(float radius)
+    {
+        sceneCheckRadius = Mathf.Max(0.1f, radius);
+        Debug.Log($"Радиус проверки объектов на сцене установлен: {sceneCheckRadius}");
+    }
+    
+    public void UpdateSceneCounts()
+    {
+        UpdateSceneObjectCounts();
+        Debug.Log("Счетчики объектов на сцене обновлены");
+    }
+    
+    public int GetObjectsOnSceneCount(GameObject prefab)
+    {
+        if (prefab == null || !prefabsOnSceneCount.ContainsKey(prefab))
+            return 0;
+        return prefabsOnSceneCount[prefab];
+    }
+    
+    public List<GameObject> GetPrefabsNotOnSceneList()
+    {
+        return GetPrefabsNotOnScene();
+    }
+    
+    public bool HasObjectsNotOnScene()
+    {
+        return HasPrefabsNotOnScene();
+    }
+    
     [ContextMenu("Создать спавн поинт")]
     public void CreateSpawnPoint()
     {
@@ -689,6 +1118,63 @@ public class PrefabSpawner : MonoBehaviour
         currentSpawnIndex = 0;
         
         Debug.Log("Все спавн поинты удалены");
+    }
+    
+    [ContextMenu("Сбросить систему рандомизации")]
+    public void ResetRandomizationSystemMenu()
+    {
+        ResetRandomizationSystem();
+    }
+    
+    [ContextMenu("Показать статистику рандомизации")]
+    public void ShowRandomizationStats()
+    {
+        Debug.Log($"=== Статистика системы рандомизации ===");
+        Debug.Log($"Расширенная рандомизация: {(useAdvancedRandomization ? "Включена" : "Отключена")}");
+        Debug.Log($"Максимум последних заспавненных: {maxRecentSpawns}");
+        Debug.Log($"Доступных префабов: {GetAvailablePrefabsCount()}");
+        Debug.Log($"Последних заспавненных: {GetRecentSpawnsCount()}");
+        Debug.Log($"Всего префабов в массиве: {(prefabsToSpawn != null ? prefabsToSpawn.Length : 0)}");
+        Debug.Log($"Приоритет объектов на сцене: {(prioritizeObjectsNotOnScene ? "Включен" : "Отключен")}");
+        
+        if (recentSpawnedPrefabs.Count > 0)
+        {
+            Debug.Log("Последние заспавненные префабы:");
+            for (int i = 0; i < recentSpawnedPrefabs.Count; i++)
+            {
+                Debug.Log($"  {i + 1}. {recentSpawnedPrefabs[i].name}");
+            }
+        }
+        
+        if (prioritizeObjectsNotOnScene)
+        {
+            Debug.Log("=== Статистика объектов на сцене ===");
+            UpdateSceneObjectCounts();
+            foreach (GameObject prefab in prefabsToSpawn)
+            {
+                if (prefab != null)
+                {
+                    int count = GetObjectsOnSceneCount(prefab);
+                    Debug.Log($"  {prefab.name}: {count} объектов на сцене");
+                }
+            }
+            
+            List<GameObject> notOnScene = GetPrefabsNotOnScene();
+            if (notOnScene.Count > 0)
+            {
+                Debug.Log("Префабы которых нет на сцене:");
+                foreach (GameObject prefab in notOnScene)
+                {
+                    Debug.Log($"  - {prefab.name}");
+                }
+            }
+        }
+    }
+    
+    [ContextMenu("Обновить счетчики объектов на сцене")]
+    public void UpdateSceneCountsMenu()
+    {
+        UpdateSceneCounts();
     }
     
     // Устанавливает правильный масштаб для заспавненного объекта в зависимости от зоны
