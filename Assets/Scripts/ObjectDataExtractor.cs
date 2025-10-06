@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 
 public class ObjectDataExtractor : MonoBehaviour
 {
@@ -18,6 +19,11 @@ public class ObjectDataExtractor : MonoBehaviour
     [SerializeField] private string stat4Combined = "";
     [SerializeField] private string stat5Combined = "";
     
+    [Header("TextMeshPro References")]
+    public TextMeshProUGUI nameText;
+    public TextMeshProUGUI rarityText;
+    public TextMeshProUGUI stat1Text;
+    public TextMeshProUGUI stat2Text;
     
     private GameObject currentFoundObject;
     private Collider2D currentFoundCollider;
@@ -133,6 +139,9 @@ public class ObjectDataExtractor : MonoBehaviour
             Debug.Log($"Stat5: {stat5Combined}");
         }
         
+        // Обновляем TextMeshPro поля
+        UpdateTextMeshProFields();
+        
         // Принудительно обновляем Inspector
         #if UNITY_EDITOR
         UnityEditor.EditorUtility.SetDirty(this);
@@ -148,6 +157,9 @@ public class ObjectDataExtractor : MonoBehaviour
         foundObjectName = "None";
         objectRarity = "";
         ClearStatsData();
+        
+        // Очищаем TextMeshPro поля
+        ClearTextMeshProFields();
     }
     
     // Очистка данных характеристик
@@ -158,6 +170,49 @@ public class ObjectDataExtractor : MonoBehaviour
         stat3Combined = "";
         stat4Combined = "";
         stat5Combined = "";
+    }
+    
+    // Обновление TextMeshPro полей данными объекта
+    private void UpdateTextMeshProFields()
+    {
+        // nameText всегда содержит имя объекта
+        if (nameText != null)
+        {
+            nameText.text = foundObjectName;
+        }
+        
+        // rarityText содержит редкость (после имени)
+        if (rarityText != null)
+        {
+            rarityText.text = objectRarity;
+        }
+        
+        // stat1Text содержит первую характеристику (только если не пустая и не "+0")
+        if (stat1Text != null)
+        {
+            stat1Text.text = IsValidStat(stat1Combined) ? stat1Combined : "";
+        }
+        
+        // stat2Text содержит вторую характеристику (только если не пустая и не "+0")
+        if (stat2Text != null)
+        {
+            stat2Text.text = IsValidStat(stat2Combined) ? stat2Combined : "";
+        }
+    }
+    
+    // Проверка валидности стата (не пустой и не "+0")
+    private bool IsValidStat(string stat)
+    {
+        return !string.IsNullOrEmpty(stat) && stat != "+0" && stat != " + 0";
+    }
+    
+    // Очистка TextMeshPro полей
+    private void ClearTextMeshProFields()
+    {
+        if (nameText != null) nameText.text = "";
+        if (rarityText != null) rarityText.text = "";
+        if (stat1Text != null) stat1Text.text = "";
+        if (stat2Text != null) stat2Text.text = "";
     }
     
     // Публичные методы для доступа к данным
