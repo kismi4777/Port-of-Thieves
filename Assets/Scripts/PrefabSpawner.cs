@@ -54,6 +54,7 @@ public class PrefabSpawner : MonoBehaviour
         public float spawnTime;
         public bool isBeingDragged;
         public bool isInDropZone;
+        public bool isBeingDestroyed;
         
         public SpawnedObjectInfo(GameObject obj, float lifetime)
         {
@@ -62,6 +63,7 @@ public class PrefabSpawner : MonoBehaviour
             this.spawnTime = Time.time;
             this.isBeingDragged = false;
             this.isInDropZone = false;
+            this.isBeingDestroyed = false;
         }
     }
     
@@ -894,6 +896,19 @@ public class PrefabSpawner : MonoBehaviour
             {
                 spawnedObjects[i].isInDropZone = false;
                 Debug.Log("Объект " + obj.name + " помечен как находящийся вне drop zone");
+                return;
+            }
+        }
+    }
+    
+    public void MarkObjectAsDestroyed(GameObject obj)
+    {
+        for (int i = 0; i < spawnedObjects.Count; i++)
+        {
+            if (spawnedObjects[i].obj == obj)
+            {
+                spawnedObjects[i].isBeingDestroyed = true;
+                Debug.Log("Объект " + obj.name + " помечен как уничтожаемый");
                 return;
             }
         }

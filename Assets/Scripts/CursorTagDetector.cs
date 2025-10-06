@@ -19,6 +19,10 @@ public class CursorTagDetector : MonoBehaviour
     public Vector2 zone2Size = new Vector2(8f, 8f); // Размер второй зоны
     public Color zone2Color = Color.blue; // Цвет второй зоны (для отладки)
     
+    public Vector2 zone3Center = new Vector2(-5f, 5f); // Центр третьей зоны
+    public Vector2 zone3Size = new Vector2(6f, 6f); // Размер третьей зоны
+    public Color zone3Color = Color.yellow; // Цвет третьей зоны (для отладки)
+    
     [Header("Scale Effect")]
     public bool useScaleEffect = true; // Включить эффект масштаба
     public float scaleMultiplier = 1.2f; // Множитель масштаба (1.2 = +20%)
@@ -27,15 +31,25 @@ public class CursorTagDetector : MonoBehaviour
     public bool useDropZone2ScaleEffect = true; // Включить эффект масштаба для drop zone 2
     public float dropZone2ScaleMultiplier = 1.5f; // Множитель масштаба для drop zone 2 (1.5 = +50%)
     
+    [Header("Drop Zone 3 Scale Effect")]
+    public bool useDropZone3ScaleEffect = true; // Включить эффект масштаба для drop zone 3
+    public float dropZone3ScaleMultiplier = 1.8f; // Множитель масштаба для drop zone 3 (1.8 = +80%)
+    
+    [Header("Drop Zone 3 Destroy Effect")]
+    public bool useDropZone3Destroy = true; // Включить удаление объектов в drop zone 3
+    public float destroyDelay = 0.1f; // Задержка перед удалением (в секундах)
+    
     [Header("Sound Effects")]
     public bool useSoundEffects = true; // Включить звуковые эффекты
     public AudioClip pickupSound; // Звук при поднятии объекта
     public AudioClip dropSound; // Звук при опускании объекта
+    public AudioClip destroySound; // Звук при удалении объекта
     public float soundVolume = 1.0f; // Громкость звуков
     
     [Header("Particle Effects")]
     public bool useParticleEffects = true; // Включить эффекты частиц
     public GameObject dropParticlePrefab; // Префаб частиц при отпускании
+    public GameObject destroyParticlePrefab; // Префаб частиц при удалении
     public float particleDuration = 2.0f; // Время до удаления частиц (в секундах)
     
     [Header("PrefabSpawner Integration")]
@@ -50,6 +64,7 @@ public class CursorTagDetector : MonoBehaviour
     private Vector3 originalScale; // Исходный масштаб объекта
     private Vector3 trueOriginalScale; // Истинно исходный масштаб объекта (без эффектов)
     private bool isInDropZone2 = false; // Флаг нахождения в drop zone 2
+    private bool isInDropZone3 = false; // Флаг нахождения в drop zone 3
     private AudioSource audioSource; // Компонент для воспроизведения звуков
     
     
@@ -145,9 +160,11 @@ public class CursorTagDetector : MonoBehaviour
                 originalPosition = draggedObject.position;
                 originalScale = draggedObject.localScale;
                 
-                // Проверяем, был ли объект в drop zone 2 перед взятием
+                // Проверяем, был ли объект в drop zone 2 или 3 перед взятием
                 bool wasInDropZone2 = IsPositionInDropZone2(draggedObject.position);
+                bool wasInDropZone3 = IsPositionInDropZone3(draggedObject.position);
                 isInDropZone2 = false; // Сбрасываем флаг, так как объект взят
+                isInDropZone3 = false; // Сбрасываем флаг, так как объект взят
                 
                 // Вычисляем истинно исходный масштаб
                 if (wasInDropZone2 && useDropZone2ScaleEffect)
@@ -156,11 +173,17 @@ public class CursorTagDetector : MonoBehaviour
                     trueOriginalScale = draggedObject.localScale / dropZone2ScaleMultiplier;
                     Debug.Log($"Объект был в drop zone 2, истинно исходный масштаб: {draggedObject.localScale} / {dropZone2ScaleMultiplier} = {trueOriginalScale}");
                 }
+                else if (wasInDropZone3 && useDropZone3ScaleEffect)
+                {
+                    // Если объект был в drop zone 3, восстанавливаем истинно исходный масштаб
+                    trueOriginalScale = draggedObject.localScale / dropZone3ScaleMultiplier;
+                    Debug.Log($"Объект был в drop zone 3, истинно исходный масштаб: {draggedObject.localScale} / {dropZone3ScaleMultiplier} = {trueOriginalScale}");
+                }
                 else
                 {
-                    // Если объект не был в drop zone 2, текущий масштаб и есть исходный
+                    // Если объект не был в специальных зонах, текущий масштаб и есть исходный
                     trueOriginalScale = draggedObject.localScale;
-                    Debug.Log($"Объект не был в drop zone 2, истинно исходный масштаб: {trueOriginalScale}");
+                    Debug.Log($"Объект не был в специальных зонах, истинно исходный масштаб: {trueOriginalScale}");
                 }
                 
                 // Уведомляем PrefabSpawner о том, что объект был забран и начал перетаскивание
@@ -210,18 +233,55 @@ public class CursorTagDetector : MonoBehaviour
                     // Объект остается в новой позиции
                     draggedObject.position = worldPosition;
                     
-                    // Проверяем, находится ли объект в drop zone 2 и изменяем масштаб
+                    // Проверяем, находится ли объект в drop zone 2 или 3 и изменяем масштаб
                     if (useDropZone2ScaleEffect && IsPositionInDropZone2(worldPosition))
                     {
                         draggedObject.localScale = trueOriginalScale * dropZone2ScaleMultiplier;
                         isInDropZone2 = true;
+                        isInDropZone3 = false;
                         Debug.Log($"Объект {draggedObject.name} помещен в drop zone 2, масштаб увеличен: {trueOriginalScale} * {dropZone2ScaleMultiplier} = {draggedObject.localScale}");
+                    }
+                    else if (IsPositionInDropZone3(worldPosition))
+                    {
+                        // Проверяем, нужно ли удалить объект в третьей зоне
+                        if (useDropZone3Destroy)
+                        {
+                            // Уведомляем PrefabSpawner об удалении объекта
+                            if (prefabSpawner != null)
+                            {
+                                prefabSpawner.MarkObjectAsDestroyed(draggedObject.gameObject);
+                                Debug.Log($"Объект {draggedObject.name} помещен в drop zone 3 для удаления");
+                            }
+                            
+                            // Запускаем корутину удаления с задержкой
+                            StartCoroutine(DestroyObjectWithDelay(draggedObject.gameObject));
+                            
+                            // Сохраняем имя объекта для лога
+                            string objectName = draggedObject.name;
+                            
+                            // Сбрасываем переменные перетаскивания
+                            isDragging = false;
+                            draggedObject = null;
+                            isInDropZone2 = false;
+                            isInDropZone3 = false;
+                            
+                            Debug.Log($"Объект {objectName} будет удален через {destroyDelay} секунд");
+                        }
+                        else if (useDropZone3ScaleEffect)
+                        {
+                            // Если удаление отключено, применяем только масштабирование
+                            draggedObject.localScale = trueOriginalScale * dropZone3ScaleMultiplier;
+                            isInDropZone2 = false;
+                            isInDropZone3 = true;
+                            Debug.Log($"Объект {draggedObject.name} помещен в drop zone 3, масштаб увеличен: {trueOriginalScale} * {dropZone3ScaleMultiplier} = {draggedObject.localScale}");
+                        }
                     }
                     else
                     {
-                        // Если не в drop zone 2, восстанавливаем исходный масштаб
+                        // Если не в специальных зонах, восстанавливаем исходный масштаб
                         draggedObject.localScale = trueOriginalScale;
                         isInDropZone2 = false;
+                        isInDropZone3 = false;
                         Debug.Log($"Объект {draggedObject.name} помещен в drop zone 1, масштаб восстановлен к исходному: {trueOriginalScale}");
                     }
                     
@@ -229,48 +289,56 @@ public class CursorTagDetector : MonoBehaviour
                     PlayDropParticles(worldPosition);
                     
                     // Уведомляем PrefabSpawner о том, что объект помещен в drop zone
-                    if (prefabSpawner != null)
+                    if (prefabSpawner != null && draggedObject != null)
                     {
                         prefabSpawner.MarkObjectAsInDropZone(draggedObject.gameObject);
                         Debug.Log($"Объект {draggedObject.name} помещен в drop zone");
                     }
                     
-                    Debug.Log($"Dropped: {draggedObject.name} at {worldPosition}");
+                    if (draggedObject != null)
+                    {
+                        Debug.Log($"Dropped: {draggedObject.name} at {worldPosition}");
+                    }
                 }
                 else
                 {
-                    // Возвращаем объект на исходную позицию
-                    draggedObject.position = originalPosition;
-                    
-                    // Восстанавливаем исходный масштаб при возврате
-                    if (useDropZone2ScaleEffect)
+                    if (draggedObject != null)
                     {
-                        draggedObject.localScale = trueOriginalScale;
-                        isInDropZone2 = false;
-                        Debug.Log($"Объект {draggedObject.name} возвращен, масштаб восстановлен к исходному: {trueOriginalScale}");
+                        // Возвращаем объект на исходную позицию
+                        draggedObject.position = originalPosition;
+                        
+                        // Восстанавливаем исходный масштаб при возврате
+                        if (useDropZone2ScaleEffect || useDropZone3ScaleEffect)
+                        {
+                            draggedObject.localScale = trueOriginalScale;
+                            isInDropZone2 = false;
+                            isInDropZone3 = false;
+                            Debug.Log($"Объект {draggedObject.name} возвращен, масштаб восстановлен к исходному: {trueOriginalScale}");
+                        }
+                        
+                        // Воспроизводим частицы при возврате
+                        PlayDropParticles(draggedObject.position);
+                        
+                        // Уведомляем PrefabSpawner о том, что объект вне drop zone
+                        if (prefabSpawner != null)
+                        {
+                            prefabSpawner.MarkObjectAsOutOfDropZone(draggedObject.gameObject);
+                        }
+                        
+                        Debug.Log($"Returned: {draggedObject.name} to spawn point (outside drop zone)");
                     }
-                    
-                    // Воспроизводим частицы при возврате
-                    PlayDropParticles(draggedObject.position);
-                    
-                    // Уведомляем PrefabSpawner о том, что объект вне drop zone
-                    if (prefabSpawner != null)
-                    {
-                        prefabSpawner.MarkObjectAsOutOfDropZone(draggedObject.gameObject);
-                    }
-                    
-                    Debug.Log($"Returned: {draggedObject.name} to spawn point (outside drop zone)");
                 }
                 
                 // Уведомляем PrefabSpawner о завершении перетаскивания
-                if (prefabSpawner != null)
+                if (prefabSpawner != null && draggedObject != null)
                 {
                     prefabSpawner.MarkObjectAsDropped(draggedObject.gameObject);
                     Debug.Log($"Перетаскивание объекта {draggedObject.name} завершено");
                 }
                 
-                // Сбрасываем флаг нахождения в drop zone 2
+                // Сбрасываем флаги нахождения в специальных зонах
                 isInDropZone2 = false;
+                isInDropZone3 = false;
                 isDragging = false;
                 draggedObject = null;
             }
@@ -316,6 +384,13 @@ public class CursorTagDetector : MonoBehaviour
             return true;
         }
         
+        // Проверяем третью дроп зону
+        if (IsPositionInZone(position, zone3Center, zone3Size))
+        {
+            Debug.Log("Объект помещен в третью дроп зону");
+            return true;
+        }
+        
         return false; // Позиция не входит ни в одну из дроп зон
     }
     
@@ -335,6 +410,12 @@ public class CursorTagDetector : MonoBehaviour
     public bool IsPositionInDropZone2(Vector3 position)
     {
         return IsPositionInZone(position, zone2Center, zone2Size);
+    }
+    
+    // Проверяет, находится ли позиция в drop zone 3
+    public bool IsPositionInDropZone3(Vector3 position)
+    {
+        return IsPositionInZone(position, zone3Center, zone3Size);
     }
     
     
@@ -367,6 +448,20 @@ public class CursorTagDetector : MonoBehaviour
         }
     }
     
+    // Воспроизводит звук удаления объекта
+    void PlayDestroySound()
+    {
+        if (useSoundEffects && destroySound != null && audioSource != null)
+        {
+            // Останавливаем текущий звук
+            audioSource.Stop();
+            // Устанавливаем звук и воспроизводим напрямую (быстрее чем PlayOneShot)
+            audioSource.clip = destroySound;
+            audioSource.volume = soundVolume;
+            audioSource.Play();
+        }
+    }
+    
     // Воспроизводит частицы при отпускании объекта
     void PlayDropParticles(Vector3 position)
     {
@@ -374,6 +469,30 @@ public class CursorTagDetector : MonoBehaviour
         {
             // Создаем экземпляр префаба частиц в позиции отпускания
             GameObject particleInstance = Instantiate(dropParticlePrefab, position, Quaternion.identity);
+            
+            // Принудительно запускаем частицы
+            ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
+            foreach (ParticleSystem ps in particleSystems)
+            {
+                ps.Play();
+            }
+            
+            // Уничтожаем частицы через заданное время
+            StartCoroutine(DestroyParticlesAfterDelay(particleInstance));
+        }
+    }
+    
+    // Воспроизводит эффекты при удалении объекта
+    void PlayDestroyEffects(Vector3 position)
+    {
+        // Воспроизводим звук удаления
+        PlayDestroySound();
+        
+        // Воспроизводим частицы удаления
+        if (useParticleEffects && destroyParticlePrefab != null)
+        {
+            // Создаем экземпляр префаба частиц в позиции удаления
+            GameObject particleInstance = Instantiate(destroyParticlePrefab, position, Quaternion.identity);
             
             // Принудительно запускаем частицы
             ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
@@ -407,6 +526,23 @@ public class CursorTagDetector : MonoBehaviour
         }
     }
     
+    // Уничтожает объект с задержкой
+    System.Collections.IEnumerator DestroyObjectWithDelay(GameObject objectToDestroy)
+    {
+        // Ждем заданное время
+        yield return new WaitForSeconds(destroyDelay);
+        
+        if (objectToDestroy != null)
+        {
+            // Воспроизводим эффекты удаления
+            PlayDestroyEffects(objectToDestroy.transform.position);
+            
+            // Уничтожаем объект
+            Destroy(objectToDestroy);
+            Debug.Log($"Объект {objectToDestroy.name} удален из сцены");
+        }
+    }
+    
     
     // Визуализация зон в Scene View (только в редакторе)
     void OnDrawGizmos()
@@ -428,6 +564,14 @@ public class CursorTagDetector : MonoBehaviour
             // Показываем центр второй зоны
             Gizmos.color = Color.cyan;
             Gizmos.DrawWireSphere(new Vector3(zone2Center.x, zone2Center.y, 0), 0.2f);
+            
+            // Рисуем третью дроп зону
+            Gizmos.color = zone3Color;
+            Gizmos.DrawWireCube(new Vector3(zone3Center.x, zone3Center.y, 0), new Vector3(zone3Size.x, zone3Size.y, 0));
+            
+            // Показываем центр третьей зоны
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(new Vector3(zone3Center.x, zone3Center.y, 0), 0.2f);
         }
         
     }
