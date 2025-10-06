@@ -1,11 +1,17 @@
 using UnityEngine;
 using TMPro;
+using System.Collections.Generic;
 
 public class ObjectDataExtractor : MonoBehaviour
 {
     [Header("Random Detection Settings")]
     [SerializeField] private string targetTag = "obj"; // Тег для поиска
     [SerializeField] private bool showDebugInfo = true;
+    
+    [Header("Zone 1 Settings (ОБЯЗАТЕЛЬНО)")]
+    [SerializeField] private CursorTagDetector cursorTagDetector; // Ссылка на CursorTagDetector для получения настроек зоны 1
+    [Tooltip("Поиск объектов ТОЛЬКО с тегом 'obj' И внутри Zone 1")]
+    [SerializeField] private bool showZone1Info = true; // Показывать информацию о зоне 1 в консоли
     
     [Header("Deception Settings")]
     [SerializeField] public bool isDeceptionActive = false; // Показатель обмана
@@ -39,6 +45,55 @@ public class ObjectDataExtractor : MonoBehaviour
     
     // Публичное свойство для доступа к имени найденного объекта
     public string FoundObjectName => foundObjectName;
+    
+    void Start()
+    {
+        // Автоматически находим CursorTagDetector в сцене, если он не назначен
+        if (cursorTagDetector == null)
+        {
+            cursorTagDetector = FindObjectOfType<CursorTagDetector>();
+            if (cursorTagDetector != null)
+            {
+                Debug.Log("CursorTagDetector автоматически найден в сцене");
+            }
+            else
+            {
+                Debug.LogWarning("CursorTagDetector не найден в сцене! Назначьте его вручную в Inspector.");
+            }
+        }
+    }
+    
+    // Проверяет, находится ли объект в зоне 1 (ОБЯЗАТЕЛЬНОЕ УСЛОВИЕ)
+    private bool IsObjectInZone1(GameObject obj)
+    {
+        if (cursorTagDetector == null)
+        {
+            Debug.LogError("CursorTagDetector не назначен! Невозможно определить Zone 1. Объект не может быть найден.");
+            return false;
+        }
+        
+        Vector3 position = obj.transform.position;
+        Vector2 zone1Center = cursorTagDetector.zone1Center;
+        Vector2 zone1Size = cursorTagDetector.zone1Size;
+        
+        float minX = zone1Center.x - zone1Size.x / 2f;
+        float maxX = zone1Center.x + zone1Size.x / 2f;
+        float minY = zone1Center.y - zone1Size.y / 2f;
+        float maxY = zone1Center.y + zone1Size.y / 2f;
+        
+        bool isInZone = position.x >= minX && position.x <= maxX && 
+                        position.y >= minY && position.y <= maxY;
+        
+        if (showZone1Info && showDebugInfo)
+        {
+            string bounds = $"Zone1 границы: X[{minX:F2} - {maxX:F2}], Y[{minY:F2} - {maxY:F2}]";
+            string objPos = $"Объект '{obj.name}' позиция: ({position.x:F2}, {position.y:F2})";
+            string result = isInZone ? "✓ В ЗОНЕ" : "✗ ВНЕ ЗОНЫ";
+            Debug.Log($"{objPos} | {bounds} | {result}");
+        }
+        
+        return isInZone;
+    }
     
     // Генерация ложных данных для обмана
     private void GenerateFakeData()
@@ -119,50 +174,34 @@ public class ObjectDataExtractor : MonoBehaviour
     }
     
     
-    // Поиск случайного объекта с тегом на сцене (выполняется только один раз)
+    // Поиск случайного объекта с тегом на сцене (ТОЛЬКО в Zone 1, выполняется при включении)
     public void FindRandomObjectOnScene()
     {
-        // Находим все объекты с нужным тегом
-        GameObject[] allObjects = GameObject.FindGameObjectsWithTag(targetTag);
+        // ИСПОЛЬЗУЕМ МЕТОД С ФИЛЬТРАЦИЕЙ ПО ZONE 1
+        GameObject randomObject = FindRandomObjectWithTag();
         
-        if (allObjects.Length > 0)
+        if (randomObject != null && showDebugInfo)
         {
-            // Выбираем случайный объект
-            int randomIndex = Random.Range(0, allObjects.Length);
-            GameObject randomObject = allObjects[randomIndex];
+            Debug.Log($"OnEnable: Найден случайный объект в Zone 1: {randomObject.name}");
             
-            // Получаем коллайдер объекта
-            Collider2D collider = randomObject.GetComponent<Collider2D>();
-            
-            // Извлекаем данные
-            ExtractObjectData(randomObject, collider);
-            
-            if (showDebugInfo)
+            // Проверяем наличие RandomRarityOnSpawn компонента
+            RandomRarityOnSpawn rarityScript = randomObject.GetComponent<RandomRarityOnSpawn>();
+            if (rarityScript != null)
             {
-                Debug.Log($"Found random object: {randomObject.name} (index {randomIndex} of {allObjects.Length})");
-                
-                // Проверяем наличие RandomRarityOnSpawn компонента
-                RandomRarityOnSpawn rarityScript = randomObject.GetComponent<RandomRarityOnSpawn>();
-                if (rarityScript != null)
-                {
-                    Debug.Log($"RandomRarityOnSpawn component found on {randomObject.name}");
-                    Debug.Log($"Rarity: {rarityScript.AssignedRarity}");
-                    Debug.Log($"Stat1: {rarityScript.stat1} + {rarityScript.stat1Value}");
-                }
-                else
-                {
-                    Debug.LogWarning($"RandomRarityOnSpawn component NOT found on {randomObject.name}");
-                }
+                Debug.Log($"RandomRarityOnSpawn component found on {randomObject.name}");
+                Debug.Log($"Rarity: {rarityScript.AssignedRarity}");
+                Debug.Log($"Stat1: {rarityScript.stat1} + {rarityScript.stat1Value}");
+            }
+            else
+            {
+                Debug.LogWarning($"RandomRarityOnSpawn component NOT found on {randomObject.name}");
             }
         }
-        else
+        else if (randomObject == null)
         {
-            ClearObjectData();
-            foundObjectName = "No objects found";
-            
             if (showDebugInfo)
             {
-                Debug.Log($"No objects with tag '{targetTag}' found on scene");
+                Debug.LogWarning($"OnEnable: Не найдено объектов с тегом '{targetTag}' в Zone 1!");
             }
         }
     }
@@ -327,31 +366,82 @@ public class ObjectDataExtractor : MonoBehaviour
     
     // Публичные методы для доступа к данным
     
-    // Поиск случайного объекта с тегом на сцене
+    // Поиск случайного объекта с тегом на сцене (ТОЛЬКО в Zone 1)
     public GameObject FindRandomObjectWithTag()
     {
         GameObject[] allObjects = GameObject.FindGameObjectsWithTag(targetTag);
         
-        if (allObjects.Length > 0)
+        if (showDebugInfo)
         {
-            int randomIndex = Random.Range(0, allObjects.Length);
-            GameObject randomObject = allObjects[randomIndex];
+            Debug.Log($"Найдено {allObjects.Length} объектов с тегом '{targetTag}'. Фильтрация по Zone 1...");
+        }
+        
+        // ОБЯЗАТЕЛЬНАЯ фильтрация объектов по зоне 1
+        List<GameObject> objectsInZone1 = new List<GameObject>();
+        foreach (GameObject obj in allObjects)
+        {
+            if (IsObjectInZone1(obj))
+            {
+                objectsInZone1.Add(obj);
+            }
+        }
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"Найдено {objectsInZone1.Count} объектов с тегом '{targetTag}' в Zone 1");
+        }
+        
+        if (objectsInZone1.Count > 0)
+        {
+            int randomIndex = Random.Range(0, objectsInZone1.Count);
+            GameObject randomObject = objectsInZone1[randomIndex];
             
             Collider2D collider = randomObject.GetComponent<Collider2D>();
             ExtractObjectData(randomObject, collider);
             
+            if (showDebugInfo)
+            {
+                Debug.Log($"Выбран случайный объект: {randomObject.name} на позиции {randomObject.transform.position}");
+            }
+            
             return randomObject;
+        }
+        
+        if (showDebugInfo)
+        {
+            Debug.LogWarning($"Не найдено объектов с тегом '{targetTag}' в Zone 1!");
         }
         
         ClearObjectData();
         return null;
     }
     
-    // Поиск всех объектов с тегом "obj" на сцене
+    // Поиск всех объектов с тегом "obj" на сцене (ТОЛЬКО в Zone 1)
     public GameObject[] FindAllObjectsWithTag()
     {
         GameObject[] allObjects = GameObject.FindGameObjectsWithTag(targetTag);
-        return allObjects;
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"Поиск всех объектов с тегом '{targetTag}'. Всего найдено: {allObjects.Length}");
+        }
+        
+        // ОБЯЗАТЕЛЬНАЯ фильтрация объектов по зоне 1
+        List<GameObject> objectsInZone1 = new List<GameObject>();
+        foreach (GameObject obj in allObjects)
+        {
+            if (IsObjectInZone1(obj))
+            {
+                objectsInZone1.Add(obj);
+            }
+        }
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"Объектов с тегом '{targetTag}' в Zone 1: {objectsInZone1.Count}");
+        }
+        
+        return objectsInZone1.ToArray();
     }
     
     
@@ -437,7 +527,117 @@ public class ObjectDataExtractor : MonoBehaviour
     {
         isDeceptionActive = false;
         UpdateTextMeshProFields();
-        Debug.Log("Deception disabled, showing real data!");
+        Debug.Log("Deception disabled!");
+    }
+    
+    [ContextMenu("Find All Objects in Zone 1")]
+    public void TestFindObjectsInZone1()
+    {
+        GameObject[] objects = FindAllObjectsWithTag();
+        Debug.Log($"===== Поиск объектов с тегом '{targetTag}' в Zone 1 =====");
+        Debug.Log($"Найдено: {objects.Length} объектов");
+        
+        foreach (GameObject obj in objects)
+        {
+            Debug.Log($"✓ {obj.name} на позиции {obj.transform.position}");
+        }
+        
+        if (objects.Length == 0)
+        {
+            Debug.LogWarning("Объектов не найдено! Проверьте:\n" +
+                           "1. Есть ли объекты с тегом 'obj' на сцене\n" +
+                           "2. Находятся ли они внутри Zone 1\n" +
+                           "3. Назначен ли CursorTagDetector");
+        }
+    }
+    
+    [ContextMenu("DEBUG: Show ALL Objects (In & Out of Zone)")]
+    public void DebugShowAllObjectsWithStatus()
+    {
+        GameObject[] allObjects = GameObject.FindGameObjectsWithTag(targetTag);
+        
+        Debug.Log($"========== ДИАГНОСТИКА ВСЕХ ОБЪЕКТОВ С ТЕГОМ '{targetTag}' ==========");
+        Debug.Log($"Всего объектов с тегом: {allObjects.Length}");
+        
+        if (cursorTagDetector == null)
+        {
+            Debug.LogError("CursorTagDetector не назначен! Проверка зоны невозможна.");
+            return;
+        }
+        
+        Vector2 zone1Center = cursorTagDetector.zone1Center;
+        Vector2 zone1Size = cursorTagDetector.zone1Size;
+        Debug.Log($"Zone 1: центр ({zone1Center.x}, {zone1Center.y}), размер ({zone1Size.x}, {zone1Size.y})");
+        
+        int inZoneCount = 0;
+        int outZoneCount = 0;
+        
+        foreach (GameObject obj in allObjects)
+        {
+            bool isInZone = IsObjectInZone1(obj);
+            if (isInZone)
+            {
+                Debug.Log($"✓ В ЗОНЕ: {obj.name} на позиции {obj.transform.position}");
+                inZoneCount++;
+            }
+            else
+            {
+                Debug.LogWarning($"✗ ВНЕ ЗОНЫ: {obj.name} на позиции {obj.transform.position}");
+                outZoneCount++;
+            }
+        }
+        
+        Debug.Log($"========== ИТОГО: В зоне {inZoneCount} | Вне зоны {outZoneCount} ==========");
+    }
+    
+    [ContextMenu("Show Zone 1 Settings")]
+    public void ShowZone1Settings()
+    {
+        Debug.Log("===== Настройки Zone 1 (ОБЯЗАТЕЛЬНОЕ УСЛОВИЕ) =====");
+        
+        if (cursorTagDetector != null)
+        {
+            Debug.Log($"✓ CursorTagDetector: Назначен\n" +
+                     $"✓ Zone 1 Center: {cursorTagDetector.zone1Center}\n" +
+                     $"✓ Zone 1 Size: {cursorTagDetector.zone1Size}\n" +
+                     $"✓ Target Tag: '{targetTag}'\n" +
+                     $"Условия поиска: Объект ДОЛЖЕН иметь тег '{targetTag}' И находиться в Zone 1");
+        }
+        else
+        {
+            Debug.LogError("✗ CursorTagDetector НЕ НАЗНАЧЕН!\n" +
+                          "Поиск объектов невозможен без Zone 1.\n" +
+                          "Назначьте CursorTagDetector в Inspector.");
+        }
+    }
+    
+    // Визуализация зоны 1 в Scene View (ОБЯЗАТЕЛЬНАЯ зона поиска)
+    void OnDrawGizmos()
+    {
+        if (cursorTagDetector != null)
+        {
+            Vector2 zone1Center = cursorTagDetector.zone1Center;
+            Vector2 zone1Size = cursorTagDetector.zone1Size;
+            
+            // Рисуем зону 1 желтым цветом (ОБЯЗАТЕЛЬНАЯ зона)
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireCube(new Vector3(zone1Center.x, zone1Center.y, 0), new Vector3(zone1Size.x, zone1Size.y, 0));
+            
+            // Показываем центр зоны 1 красным
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(new Vector3(zone1Center.x, zone1Center.y, 0), 0.3f);
+            
+            // Полупрозрачное заполнение зоны
+            Gizmos.color = new Color(1f, 1f, 0f, 0.1f); // Полупрозрачный желтый
+            Gizmos.DrawCube(new Vector3(zone1Center.x, zone1Center.y, 0), new Vector3(zone1Size.x, zone1Size.y, 0.1f));
+        }
+        else
+        {
+            // Предупреждение если CursorTagDetector не назначен
+            #if UNITY_EDITOR
+            UnityEditor.Handles.Label(transform.position, "⚠ CursorTagDetector не назначен!");
+            #endif
+        }
     }
     
     [ContextMenu("Test Deception - 100% Chance")]

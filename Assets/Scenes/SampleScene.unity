@@ -2047,7 +2047,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &709987926
 Transform:
   m_ObjectHideFlags: 0
@@ -2079,6 +2079,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetTag: Obj
   showDebugInfo: 1
+  useZone1Filter: 1
+  cursorTagDetector: {fileID: 1117756694}
   isDeceptionActive: 0
   deceptionChance: 50
   foundObjectName: None
