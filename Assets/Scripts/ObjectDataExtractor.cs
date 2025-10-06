@@ -27,6 +27,9 @@ public class ObjectDataExtractor : MonoBehaviour
     private GameObject currentFoundObject;
     private Collider2D currentFoundCollider;
     
+    // Публичное свойство для доступа к имени найденного объекта
+    public string FoundObjectName => foundObjectName;
+    
     void OnEnable()
     {
         // Находим случайный объект с тегом при включении скрипта
