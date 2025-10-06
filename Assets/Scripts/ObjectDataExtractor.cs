@@ -4,7 +4,6 @@ public class ObjectDataExtractor : MonoBehaviour
 {
     [Header("Random Detection Settings")]
     [SerializeField] private string targetTag = "obj"; // Тег для поиска
-    [SerializeField] private float detectionInterval = 1f; // Интервал поиска в секундах
     [SerializeField] private bool showDebugInfo = true;
     
     
@@ -25,29 +24,28 @@ public class ObjectDataExtractor : MonoBehaviour
     [SerializeField] private int stat5Value = 0;
     
     
-    private float lastDetectionTime = 0f;
     private GameObject currentFoundObject;
     private Collider2D currentFoundCollider;
     
-    void Start()
+    void OnEnable()
     {
+        // Находим случайный объект с тегом при включении скрипта
+        FindRandomObjectOnScene();
+    }
+    
+    void OnDisable()
+    {
+        // Сбрасываем все данные при отключении скрипта
+        ClearObjectData();
+        
         if (showDebugInfo)
         {
-            Debug.Log($"ObjectDataExtractor initialized. Target Tag: {targetTag}");
+            Debug.Log("ObjectDataExtractor disabled, all data cleared");
         }
     }
     
-    void Update()
-    {
-        // Проверяем, прошло ли достаточно времени с последнего поиска
-        if (Time.time - lastDetectionTime >= detectionInterval)
-        {
-            FindRandomObjectOnScene();
-            lastDetectionTime = Time.time;
-        }
-    }
     
-    // Поиск случайного объекта с тегом на сцене
+    // Поиск случайного объекта с тегом на сцене (выполняется только один раз)
     public void FindRandomObjectOnScene()
     {
         // Находим все объекты с нужным тегом
@@ -68,6 +66,19 @@ public class ObjectDataExtractor : MonoBehaviour
             if (showDebugInfo)
             {
                 Debug.Log($"Found random object: {randomObject.name} (index {randomIndex} of {allObjects.Length})");
+                
+                // Проверяем наличие RandomRarityOnSpawn компонента
+                RandomRarityOnSpawn rarityScript = randomObject.GetComponent<RandomRarityOnSpawn>();
+                if (rarityScript != null)
+                {
+                    Debug.Log($"RandomRarityOnSpawn component found on {randomObject.name}");
+                    Debug.Log($"Rarity: {rarityScript.AssignedRarity}");
+                    Debug.Log($"Stat1: {rarityScript.stat1} = {rarityScript.stat1Value}");
+                }
+                else
+                {
+                    Debug.LogWarning($"RandomRarityOnSpawn component NOT found on {randomObject.name}");
+                }
             }
         }
         else
@@ -121,8 +132,18 @@ public class ObjectDataExtractor : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"Extracted data from object '{foundObjectName}': Rarity={objectRarity}, Stats={stat1}(+{stat1Value}), {stat2}(+{stat2Value}), {stat3}(+{stat3Value}), {stat4}(+{stat4Value}), {stat5}(+{stat5Value})");
+            Debug.Log($"Extracted data from object '{foundObjectName}': Rarity={objectRarity}");
+            Debug.Log($"Stat1: {stat1} = {stat1Value}");
+            Debug.Log($"Stat2: {stat2} = {stat2Value}");
+            Debug.Log($"Stat3: {stat3} = {stat3Value}");
+            Debug.Log($"Stat4: {stat4} = {stat4Value}");
+            Debug.Log($"Stat5: {stat5} = {stat5Value}");
         }
+        
+        // Принудительно обновляем Inspector
+        #if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+        #endif
     }
     
     
@@ -132,6 +153,7 @@ public class ObjectDataExtractor : MonoBehaviour
         currentFoundObject = null;
         currentFoundCollider = null;
         foundObjectName = "None";
+        objectRarity = "";
         ClearStatsData();
     }
     
@@ -214,14 +236,6 @@ public class ObjectDataExtractor : MonoBehaviour
         public GameObject GameObject;
         public Collider2D Collider;
     }
-    
-    // Методы для управления обнаружением
-    public void SetDetectionInterval(float interval)
-    {
-        detectionInterval = interval;
-    }
-    
-    
     
     // Контекстные меню для тестирования
     [ContextMenu("Find Random Object with Tag")]
