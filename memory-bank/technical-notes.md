@@ -622,7 +622,7 @@ void OnDrawGizmos()
 - Извлечение основных данных: имя, позиция, масштаб
 - Проверка наличия компонента `RandomRarityOnSpawn`
 - Извлечение данных редкости: тип, цвет
-- Извлечение характеристик: 5 слотов статов с названиями и значениями
+- Извлечение характеристик: 5 слотов статов в объединенном формате "stat + value"
 
 **3. Система извлечения дополнительных данных (строки 222-280):**
 - Извлечение текста с компонента `Text`
@@ -644,16 +644,11 @@ public struct ObjectData
     public bool HasRandomRarityScript;     // Наличие скрипта редкости
     public string Rarity;                  // Тип редкости
     public Color RarityColor;             // Цвет редкости
-    public string Stat1;                   // Характеристика 1
-    public int Stat1Value;                 // Значение характеристики 1
-    public string Stat2;                   // Характеристика 2
-    public int Stat2Value;                 // Значение характеристики 2
-    public string Stat3;                   // Характеристика 3
-    public int Stat3Value;                 // Значение характеристики 3
-    public string Stat4;                   // Характеристика 4
-    public int Stat4Value;                 // Значение характеристики 4
-    public string Stat5;                   // Характеристика 5
-    public int Stat5Value;                 // Значение характеристики 5
+    public string Stat1Combined;           // Характеристика 1 + значение
+    public string Stat2Combined;           // Характеристика 2 + значение
+    public string Stat3Combined;           // Характеристика 3 + значение
+    public string Stat4Combined;           // Характеристика 4 + значение
+    public string Stat5Combined;           // Характеристика 5 + значение
     public string ObjectText;              // Текст объекта
     public Sprite ObjectSprite;            // Спрайт объекта
     public Vector3 Position;               // Позиция объекта

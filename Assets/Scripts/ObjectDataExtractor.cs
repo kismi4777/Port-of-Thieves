@@ -11,17 +11,12 @@ public class ObjectDataExtractor : MonoBehaviour
     [SerializeField] private string foundObjectName = "None";
     [SerializeField] private string objectRarity = "";
     
-    // Данные характеристик объекта (как в SimpleMouseDetector)
-    [SerializeField] private string stat1 = "";
-    [SerializeField] private int stat1Value = 0;
-    [SerializeField] private string stat2 = "";
-    [SerializeField] private int stat2Value = 0;
-    [SerializeField] private string stat3 = "";
-    [SerializeField] private int stat3Value = 0;
-    [SerializeField] private string stat4 = "";
-    [SerializeField] private int stat4Value = 0;
-    [SerializeField] private string stat5 = "";
-    [SerializeField] private int stat5Value = 0;
+    // Данные характеристик объекта (объединенные stat + value)
+    [SerializeField] private string stat1Combined = "";
+    [SerializeField] private string stat2Combined = "";
+    [SerializeField] private string stat3Combined = "";
+    [SerializeField] private string stat4Combined = "";
+    [SerializeField] private string stat5Combined = "";
     
     
     private GameObject currentFoundObject;
@@ -76,7 +71,7 @@ public class ObjectDataExtractor : MonoBehaviour
                 {
                     Debug.Log($"RandomRarityOnSpawn component found on {randomObject.name}");
                     Debug.Log($"Rarity: {rarityScript.AssignedRarity}");
-                    Debug.Log($"Stat1: {rarityScript.stat1} = {rarityScript.stat1Value}");
+                    Debug.Log($"Stat1: {rarityScript.stat1} + {rarityScript.stat1Value}");
                 }
                 else
                 {
@@ -113,17 +108,12 @@ public class ObjectDataExtractor : MonoBehaviour
             // Извлекаем данные редкости
             objectRarity = rarityScript.AssignedRarity.ToString();
             
-            // Извлекаем характеристики (как в SimpleMouseDetector)
-            stat1 = rarityScript.stat1;
-            stat1Value = rarityScript.stat1Value;
-            stat2 = rarityScript.stat2;
-            stat2Value = rarityScript.stat2Value;
-            stat3 = rarityScript.stat3;
-            stat3Value = rarityScript.stat3Value;
-            stat4 = rarityScript.stat4;
-            stat4Value = rarityScript.stat4Value;
-            stat5 = rarityScript.stat5;
-            stat5Value = rarityScript.stat5Value;
+            // Извлекаем характеристики (объединяем stat + value)
+            stat1Combined = $"{rarityScript.stat1} + {rarityScript.stat1Value}";
+            stat2Combined = $"{rarityScript.stat2} + {rarityScript.stat2Value}";
+            stat3Combined = $"{rarityScript.stat3} + {rarityScript.stat3Value}";
+            stat4Combined = $"{rarityScript.stat4} + {rarityScript.stat4Value}";
+            stat5Combined = $"{rarityScript.stat5} + {rarityScript.stat5Value}";
         }
         else
         {
@@ -136,11 +126,11 @@ public class ObjectDataExtractor : MonoBehaviour
         if (showDebugInfo)
         {
             Debug.Log($"Extracted data from object '{foundObjectName}': Rarity={objectRarity}");
-            Debug.Log($"Stat1: {stat1} = {stat1Value}");
-            Debug.Log($"Stat2: {stat2} = {stat2Value}");
-            Debug.Log($"Stat3: {stat3} = {stat3Value}");
-            Debug.Log($"Stat4: {stat4} = {stat4Value}");
-            Debug.Log($"Stat5: {stat5} = {stat5Value}");
+            Debug.Log($"Stat1: {stat1Combined}");
+            Debug.Log($"Stat2: {stat2Combined}");
+            Debug.Log($"Stat3: {stat3Combined}");
+            Debug.Log($"Stat4: {stat4Combined}");
+            Debug.Log($"Stat5: {stat5Combined}");
         }
         
         // Принудительно обновляем Inspector
@@ -163,11 +153,11 @@ public class ObjectDataExtractor : MonoBehaviour
     // Очистка данных характеристик
     private void ClearStatsData()
     {
-        stat1 = ""; stat1Value = 0;
-        stat2 = ""; stat2Value = 0;
-        stat3 = ""; stat3Value = 0;
-        stat4 = ""; stat4Value = 0;
-        stat5 = ""; stat5Value = 0;
+        stat1Combined = "";
+        stat2Combined = "";
+        stat3Combined = "";
+        stat4Combined = "";
+        stat5Combined = "";
     }
     
     // Публичные методы для доступа к данным
@@ -206,16 +196,11 @@ public class ObjectDataExtractor : MonoBehaviour
         return new ObjectData
         {
             Name = foundObjectName,
-            Stat1 = stat1,
-            Stat1Value = stat1Value,
-            Stat2 = stat2,
-            Stat2Value = stat2Value,
-            Stat3 = stat3,
-            Stat3Value = stat3Value,
-            Stat4 = stat4,
-            Stat4Value = stat4Value,
-            Stat5 = stat5,
-            Stat5Value = stat5Value,
+            Stat1Combined = stat1Combined,
+            Stat2Combined = stat2Combined,
+            Stat3Combined = stat3Combined,
+            Stat4Combined = stat4Combined,
+            Stat5Combined = stat5Combined,
             GameObject = currentFoundObject,
             Collider = currentFoundCollider
         };
@@ -226,16 +211,11 @@ public class ObjectDataExtractor : MonoBehaviour
     public struct ObjectData
     {
         public string Name;
-        public string Stat1;
-        public int Stat1Value;
-        public string Stat2;
-        public int Stat2Value;
-        public string Stat3;
-        public int Stat3Value;
-        public string Stat4;
-        public int Stat4Value;
-        public string Stat5;
-        public int Stat5Value;
+        public string Stat1Combined;
+        public string Stat2Combined;
+        public string Stat3Combined;
+        public string Stat4Combined;
+        public string Stat5Combined;
         public GameObject GameObject;
         public Collider2D Collider;
     }
@@ -272,6 +252,6 @@ public class ObjectDataExtractor : MonoBehaviour
         ObjectData data = GetExtractedData();
         Debug.Log($"Current Object Data:\n" +
                  $"Name: {data.Name}\n" +
-                 $"Stats: {data.Stat1}(+{data.Stat1Value}), {data.Stat2}(+{data.Stat2Value}), {data.Stat3}(+{data.Stat3Value}), {data.Stat4}(+{data.Stat4Value}), {data.Stat5}(+{data.Stat5Value})");
+                 $"Stats: {data.Stat1Combined}, {data.Stat2Combined}, {data.Stat3Combined}, {data.Stat4Combined}, {data.Stat5Combined}");
     }
 }
