@@ -7,6 +7,15 @@ public class ObjectDataExtractor : MonoBehaviour
     [SerializeField] private string targetTag = "obj"; // Тег для поиска
     [SerializeField] private bool showDebugInfo = true;
     
+    [Header("Deception Settings")]
+    [SerializeField] public bool isDeceptionActive = false; // Показатель обмана
+    [SerializeField] [Range(0f, 100f)] public float deceptionChance = 5f; // Шанс активации обмана в процентах
+    
+    // Ложные данные для отображения при обмане
+    private string fakeRarity = "";
+    private string fakeStat1Combined = "";
+    private string fakeStat2Combined = "";
+    
     
     [Header("Extracted Data")]
     [SerializeField] private string foundObjectName = "None";
@@ -31,8 +40,67 @@ public class ObjectDataExtractor : MonoBehaviour
     // Публичное свойство для доступа к имени найденного объекта
     public string FoundObjectName => foundObjectName;
     
+    // Генерация ложных данных для обмана
+    private void GenerateFakeData()
+    {
+        // Массив возможных типов редкости (русские названия)
+        string[] rarityTypes = { "Обычный", "Необычный", "Редкий", "Эпический", "Легендарный", "Мифический" };
+        fakeRarity = rarityTypes[Random.Range(0, rarityTypes.Length)];
+        
+        // Массив возможных характеристик (русские названия)
+        string[] statTypes = { 
+            "Физический урон",
+            "Магический урон", 
+            "Скорость атаки",
+            "Критический шанс",
+            "Критический урон",
+            "Физическая защита",
+            "Магическая защита",
+            "Сопротивление огню",
+            "Сопротивление яду",
+            "Блокирование",
+            "Поглощение урона",
+            "Скорость передвижения",
+            "Вампиризм Жизни",
+            "Вампиризм Маны",
+            "Сопротивление оглушению",
+            "Сопротивление замедлению",
+            "Отражение урона",
+            "Регенерация здоровья",
+            "Регенерация маны"
+        };
+        
+        // Генерируем две случайные характеристики
+        string stat1 = statTypes[Random.Range(0, statTypes.Length)];
+        int value1 = Random.Range(1, 100);
+        fakeStat1Combined = $"{stat1} + {value1}";
+        
+        string stat2 = statTypes[Random.Range(0, statTypes.Length)];
+        int value2 = Random.Range(1, 100);
+        fakeStat2Combined = $"{stat2} + {value2}";
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"Generated fake data - Rarity: {fakeRarity}, Stat1: {fakeStat1Combined}, Stat2: {fakeStat2Combined}");
+        }
+    }
+    
     void OnEnable()
     {
+        // Активируем обман с настраиваемым шансом
+        isDeceptionActive = Random.Range(0f, 100f) < deceptionChance;
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"Deception active: {isDeceptionActive} ({deceptionChance}% chance)");
+        }
+        
+        // Генерируем ложные данные если обман активирован
+        if (isDeceptionActive)
+        {
+            GenerateFakeData();
+        }
+        
         // Находим случайный объект с тегом при включении скрипта
         FindRandomObjectOnScene();
     }
@@ -41,6 +109,8 @@ public class ObjectDataExtractor : MonoBehaviour
     {
         // Сбрасываем все данные при отключении скрипта
         ClearObjectData();
+        isDeceptionActive = false;
+        ClearFakeData();
         
         if (showDebugInfo)
         {
@@ -132,8 +202,19 @@ public class ObjectDataExtractor : MonoBehaviour
         if (showDebugInfo)
         {
             Debug.Log($"Extracted data from object '{foundObjectName}': Rarity={objectRarity}");
-            Debug.Log($"Stat1: {stat1Combined}");
-            Debug.Log($"Stat2: {stat2Combined}");
+            Debug.Log($"Deception Active: {isDeceptionActive}");
+            
+            if (isDeceptionActive)
+            {
+                Debug.Log($"REAL DATA - Stat1: {stat1Combined}, Stat2: {stat2Combined}");
+                Debug.Log($"FAKE DATA - Rarity: {fakeRarity}, Stat1: {fakeStat1Combined}, Stat2: {fakeStat2Combined}");
+            }
+            else
+            {
+                Debug.Log($"Stat1: {stat1Combined}");
+                Debug.Log($"Stat2: {stat2Combined}");
+            }
+            
             Debug.Log($"Stat3: {stat3Combined}");
             Debug.Log($"Stat4: {stat4Combined}");
             Debug.Log($"Stat5: {stat5Combined}");
@@ -172,6 +253,14 @@ public class ObjectDataExtractor : MonoBehaviour
         stat5Combined = "";
     }
     
+    // Очистка ложных данных
+    private void ClearFakeData()
+    {
+        fakeRarity = "";
+        fakeStat1Combined = "";
+        fakeStat2Combined = "";
+    }
+    
     // Обновление TextMeshPro полей данными объекта
     private void UpdateTextMeshProFields()
     {
@@ -181,22 +270,43 @@ public class ObjectDataExtractor : MonoBehaviour
             nameText.text = foundObjectName;
         }
         
-        // rarityText содержит редкость (после имени)
+        // rarityText содержит редкость (ложную или реальную в зависимости от обмана)
         if (rarityText != null)
         {
-            rarityText.text = objectRarity;
+            if (isDeceptionActive && !string.IsNullOrEmpty(fakeRarity))
+            {
+                rarityText.text = fakeRarity;
+            }
+            else
+            {
+                rarityText.text = objectRarity;
+            }
         }
         
-        // stat1Text содержит первую характеристику (только если не пустая и не "+0")
+        // stat1Text содержит первую характеристику (ложную или реальную в зависимости от обмана)
         if (stat1Text != null)
         {
-            stat1Text.text = IsValidStat(stat1Combined) ? stat1Combined : "";
+            if (isDeceptionActive && !string.IsNullOrEmpty(fakeStat1Combined))
+            {
+                stat1Text.text = fakeStat1Combined;
+            }
+            else
+            {
+                stat1Text.text = IsValidStat(stat1Combined) ? stat1Combined : "";
+            }
         }
         
-        // stat2Text содержит вторую характеристику (только если не пустая и не "+0")
+        // stat2Text содержит вторую характеристику (ложную или реальную в зависимости от обмана)
         if (stat2Text != null)
         {
-            stat2Text.text = IsValidStat(stat2Combined) ? stat2Combined : "";
+            if (isDeceptionActive && !string.IsNullOrEmpty(fakeStat2Combined))
+            {
+                stat2Text.text = fakeStat2Combined;
+            }
+            else
+            {
+                stat2Text.text = IsValidStat(stat2Combined) ? stat2Combined : "";
+            }
         }
     }
     
@@ -257,7 +367,8 @@ public class ObjectDataExtractor : MonoBehaviour
             Stat4Combined = stat4Combined,
             Stat5Combined = stat5Combined,
             GameObject = currentFoundObject,
-            Collider = currentFoundCollider
+            Collider = currentFoundCollider,
+            IsDeceptionActive = isDeceptionActive
         };
     }
     
@@ -273,6 +384,7 @@ public class ObjectDataExtractor : MonoBehaviour
         public string Stat5Combined;
         public GameObject GameObject;
         public Collider2D Collider;
+        public bool IsDeceptionActive;
     }
     
     // Контекстные меню для тестирования
@@ -307,6 +419,43 @@ public class ObjectDataExtractor : MonoBehaviour
         ObjectData data = GetExtractedData();
         Debug.Log($"Current Object Data:\n" +
                  $"Name: {data.Name}\n" +
+                 $"Deception Active: {data.IsDeceptionActive}\n" +
                  $"Stats: {data.Stat1Combined}, {data.Stat2Combined}, {data.Stat3Combined}, {data.Stat4Combined}, {data.Stat5Combined}");
+    }
+    
+    [ContextMenu("Test Deception - Generate Fake Data")]
+    public void TestDeception()
+    {
+        isDeceptionActive = true;
+        GenerateFakeData();
+        UpdateTextMeshProFields();
+        Debug.Log("Deception activated and fake data generated!");
+    }
+    
+    [ContextMenu("Test Deception - Disable")]
+    public void TestDeceptionDisable()
+    {
+        isDeceptionActive = false;
+        UpdateTextMeshProFields();
+        Debug.Log("Deception disabled, showing real data!");
+    }
+    
+    [ContextMenu("Test Deception - 100% Chance")]
+    public void TestDeception100Percent()
+    {
+        deceptionChance = 100f;
+        isDeceptionActive = true;
+        GenerateFakeData();
+        UpdateTextMeshProFields();
+        Debug.Log("Deception set to 100% chance and activated!");
+    }
+    
+    [ContextMenu("Test Deception - 0% Chance")]
+    public void TestDeception0Percent()
+    {
+        deceptionChance = 0f;
+        isDeceptionActive = false;
+        UpdateTextMeshProFields();
+        Debug.Log("Deception set to 0% chance and disabled!");
     }
 }
