@@ -39,6 +39,12 @@ public class CursorTagDetector : MonoBehaviour
     public bool useDropZone3Destroy = true; // Включить удаление объектов в drop zone 3
     public float destroyDelay = 0.1f; // Задержка перед удалением (в секундах)
     
+    [Header("Zone 3 Object Restrictions")]
+    public bool useZone3ObjectRestrictions = true; // Включить ограничения для объектов в zone 3
+    public ObjectDataExtractor objectDataExtractor; // Ссылка на ObjectDataExtractor для проверки соответствия
+    public bool autoFindObjectDataExtractor = true; // Автоматический поиск ObjectDataExtractor
+    public bool showZone3RestrictionDebugInfo = true; // Показывать отладочную информацию об ограничениях zone 3
+    
     [Header("Sound Effects")]
     public bool useSoundEffects = true; // Включить звуковые эффекты
     public AudioClip pickupSound; // Звук при поднятии объекта
@@ -122,6 +128,12 @@ public class CursorTagDetector : MonoBehaviour
             FindClientManager();
         }
         
+        // Автоматический поиск ObjectDataExtractor если включен
+        if (autoFindObjectDataExtractor)
+        {
+            FindObjectDataExtractor();
+        }
+        
         Debug.Log($"Camera found: {mainCamera.name}, Position: {mainCamera.transform.position}");
     }
     
@@ -148,8 +160,61 @@ public class CursorTagDetector : MonoBehaviour
     }
     
     /// <summary>
-    /// Проверяет, активен ли Client (для активации zone 3) с кэшированием
+    /// Автоматический поиск ObjectDataExtractor на сцене
     /// </summary>
+    private void FindObjectDataExtractor()
+    {
+        // Ищем компонент ObjectDataExtractor на сцене
+        ObjectDataExtractor foundExtractor = FindObjectOfType<ObjectDataExtractor>();
+        
+        if (foundExtractor != null)
+        {
+            objectDataExtractor = foundExtractor;
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.Log($"CursorTagDetector: ObjectDataExtractor автоматически найден: {foundExtractor.name}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("CursorTagDetector: ObjectDataExtractor не найден на сцене!");
+        }
+    }
+    
+    /// <summary>
+    /// Проверяет, соответствует ли объект данным из ObjectDataExtractor
+    /// </summary>
+    private bool IsObjectMatchingExtractedData(GameObject obj)
+    {
+        if (!useZone3ObjectRestrictions)
+        {
+            return true; // Если ограничения отключены, разрешаем все объекты
+        }
+        
+        if (objectDataExtractor == null)
+        {
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.LogWarning("CursorTagDetector: ObjectDataExtractor не найден! Объект будет заблокирован для zone 3");
+            }
+            return false;
+        }
+        
+        // Получаем данные из ObjectDataExtractor
+        ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
+        
+        // Проверяем соответствие по имени объекта
+        bool nameMatches = obj.name == extractedData.Name;
+        
+        if (showZone3RestrictionDebugInfo)
+        {
+            Debug.Log($"CursorTagDetector: Проверка соответствия объекта '{obj.name}' с extracted data '{extractedData.Name}' - {(nameMatches ? "СООТВЕТСТВУЕТ" : "НЕ СООТВЕТСТВУЕТ")}");
+        }
+        
+        return nameMatches;
+    }
+    
+    /// <summary>
     private bool IsClientActive()
     {
         if (!requireClientActiveForZone3)
@@ -352,7 +417,7 @@ public class CursorTagDetector : MonoBehaviour
                 }
                 
                 // Проверяем, можно ли отпустить объект в этой позиции
-                if (CanDropAtPosition(worldPosition))
+                if (CanDropAtPosition(worldPosition, draggedObject.gameObject))
                 {
                     // Объект остается в новой позиции
                     draggedObject.position = worldPosition;
@@ -391,6 +456,27 @@ public class CursorTagDetector : MonoBehaviour
                         // Проверяем, нужно ли удалить объект в третьей зоне
                         if (useDropZone3Destroy)
                         {
+                            // Проверяем соответствие объекта с данными из ObjectDataExtractor
+                            if (useZone3ObjectRestrictions && !IsObjectMatchingExtractedData(draggedObject.gameObject))
+                            {
+                                if (showZone3RestrictionDebugInfo)
+                                {
+                                    Debug.Log($"Zone 3: Объект '{draggedObject.name}' не соответствует extracted data - удаление запрещено");
+                                }
+                                
+                                // Возвращаем объект на исходную позицию
+                                draggedObject.position = originalPosition;
+                                draggedObject.localScale = originalScale;
+                                
+                                // Сбрасываем переменные перетаскивания
+                                isDragging = false;
+                                draggedObject = null;
+                                isInDropZone2 = false;
+                                isInDropZone3 = false;
+                                
+                                return;
+                            }
+                            
                             // Записываем информацию об объекте перед удалением
                             if (enableZone3Tracking)
                             {
@@ -516,7 +602,7 @@ public class CursorTagDetector : MonoBehaviour
     }
     
     // Проверяет, можно ли отпустить объект в данной позиции
-    public bool CanDropAtPosition(Vector3 position)
+    public bool CanDropAtPosition(Vector3 position, GameObject obj = null)
     {
         if (!useDropZone)
             return true; // Если зона отключена, можно отпускать везде
@@ -544,6 +630,16 @@ public class CursorTagDetector : MonoBehaviour
                 if (showTrackingDebugInfo)
                 {
                     Debug.Log("Zone 3 неактивна - Client не активен");
+                }
+                return false;
+            }
+            
+            // Проверяем соответствие объекта с данными из ObjectDataExtractor
+            if (obj != null && !IsObjectMatchingExtractedData(obj))
+            {
+                if (showZone3RestrictionDebugInfo)
+                {
+                    Debug.Log($"Zone 3: Объект '{obj.name}' не соответствует extracted data - доступ запрещен");
                 }
                 return false;
             }
@@ -1124,6 +1220,48 @@ public class CursorTagDetector : MonoBehaviour
             this.hadRandomRarityScript = hadRarityScript;
             this.rarity = rarityType;
             this.gold = goldAmount;
+        }
+    }
+    
+    [ContextMenu("Принудительно найти ObjectDataExtractor")]
+    private void TestFindObjectDataExtractor()
+    {
+        FindObjectDataExtractor();
+        if (objectDataExtractor != null)
+        {
+            Debug.Log($"✅ ObjectDataExtractor найден: {objectDataExtractor.name}");
+        }
+        else
+        {
+            Debug.LogWarning("❌ ObjectDataExtractor не найден на сцене!");
+        }
+    }
+    
+    [ContextMenu("Показать текущие extracted data")]
+    private void TestShowExtractedData()
+    {
+        if (objectDataExtractor != null)
+        {
+            ObjectDataExtractor.ObjectData data = objectDataExtractor.GetExtractedData();
+            Debug.Log($"📋 Extracted Data: Name='{data.Name}', Stat1='{data.Stat1Combined}', Stat2='{data.Stat2Combined}'");
+        }
+        else
+        {
+            Debug.LogWarning("❌ ObjectDataExtractor не найден!");
+        }
+    }
+    
+    [ContextMenu("Тест соответствия объекта")]
+    private void TestObjectMatching()
+    {
+        if (draggedObject != null)
+        {
+            bool matches = IsObjectMatchingExtractedData(draggedObject.gameObject);
+            Debug.Log($"🔍 Тест соответствия объекта '{draggedObject.name}': {(matches ? "✅ СООТВЕТСТВУЕТ" : "❌ НЕ СООТВЕТСТВУЕТ")} extracted data");
+        }
+        else
+        {
+            Debug.LogWarning("❌ Нет перетаскиваемого объекта для тестирования!");
         }
     }
 }
