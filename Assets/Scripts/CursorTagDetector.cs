@@ -55,7 +55,6 @@ public class CursorTagDetector : MonoBehaviour
     [Header("Particle Effects")]
     public bool useParticleEffects = true; // Включить эффекты частиц
     public GameObject dropParticlePrefab; // Префаб частиц при отпускании
-    public GameObject destroyParticlePrefab; // Префаб частиц при удалении
     public float particleDuration = 2.0f; // Время до удаления частиц (в секундах)
     
     [Header("Zone 3 Particle Effects")]
@@ -620,11 +619,11 @@ public class CursorTagDetector : MonoBehaviour
                                 Debug.Log($"Объект {draggedObject.name} помещен в drop zone 3 для удаления");
                             }
                             
-                            // Запускаем корутину удаления с задержкой
-                            StartCoroutine(DestroyObjectWithDelay(draggedObject.gameObject));
-                            
                             // Воспроизводим партиклы успешного удаления правильного объекта
                             PlayZone3SuccessParticles(worldPosition);
+                            
+                            // Запускаем корутину удаления с задержкой
+                            StartCoroutine(DestroyObjectWithDelay(draggedObject.gameObject));
                             
                             // Сохраняем имя объекта для лога
                             string objectName = draggedObject.name;
@@ -915,7 +914,14 @@ public class CursorTagDetector : MonoBehaviour
             
             if (showZone3RestrictionDebugInfo)
             {
-                Debug.Log($"Zone 3: Воспроизведены партиклы успешного удаления в позиции {position}");
+                Debug.Log($"Zone 3: Воспроизведены партиклы успешного удаления в позиции {position}. Создан объект: {particleInstance.name}");
+            }
+        }
+        else
+        {
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.LogWarning($"Zone 3: Не удалось воспроизвести партиклы успешного удаления. useZone3ParticleEffects: {useZone3ParticleEffects}, zone3SuccessParticlePrefab: {(zone3SuccessParticlePrefab != null ? zone3SuccessParticlePrefab.name : "null")}");
             }
         }
     }
@@ -940,34 +946,18 @@ public class CursorTagDetector : MonoBehaviour
             
             if (showZone3RestrictionDebugInfo)
             {
-                Debug.Log($"Zone 3: Воспроизведены партиклы блокировки в позиции {position}");
+                Debug.Log($"Zone 3: Воспроизведены партиклы блокировки в позиции {position}. Создан объект: {particleInstance.name}");
+            }
+        }
+        else
+        {
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.LogWarning($"Zone 3: Не удалось воспроизвести партиклы блокировки. useZone3ParticleEffects: {useZone3ParticleEffects}, zone3BlockedParticlePrefab: {(zone3BlockedParticlePrefab != null ? zone3BlockedParticlePrefab.name : "null")}");
             }
         }
     }
     
-    // Воспроизводит эффекты при удалении объекта
-    void PlayDestroyEffects(Vector3 position)
-    {
-        // Воспроизводим звук удаления
-        PlayDestroySound();
-        
-        // Воспроизводим частицы удаления
-        if (useParticleEffects && destroyParticlePrefab != null)
-        {
-            // Создаем экземпляр префаба частиц в позиции удаления
-            GameObject particleInstance = Instantiate(destroyParticlePrefab, position, Quaternion.identity);
-            
-            // Принудительно запускаем частицы
-            ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
-            foreach (ParticleSystem ps in particleSystems)
-            {
-                ps.Play();
-            }
-            
-            // Уничтожаем частицы через заданное время
-            StartCoroutine(DestroyParticlesAfterDelay(particleInstance));
-        }
-    }
     
     // Уничтожает частицы через заданное время
     System.Collections.IEnumerator DestroyParticlesAfterDelay(GameObject particleInstance)
@@ -997,8 +987,8 @@ public class CursorTagDetector : MonoBehaviour
         
         if (objectToDestroy != null)
         {
-            // Воспроизводим эффекты удаления
-            PlayDestroyEffects(objectToDestroy.transform.position);
+            // Воспроизводим звук удаления
+            PlayDestroySound();
             
             // Уничтожаем объект
             Destroy(objectToDestroy);
