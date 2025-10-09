@@ -27,6 +27,11 @@ public class ClientManager : MonoBehaviour
     [SerializeField] private bool autoDeactivateOnZone3Destruction = true; // Автоматически выключать Client при удалении в zone 3
     [SerializeField] private bool showZone3DebugInfo = true; // Показывать отладочную информацию zone 3
     
+    [Header("Object Matching")]
+    [SerializeField] private bool checkObjectMatching = true; // Проверять соответствие удаленного объекта с extracted data
+    [SerializeField] private bool onlyDeactivateOnMatchingObject = true; // Выключать Client только если удаленный объект соответствует extracted data
+    [SerializeField] private bool showObjectMatchingDebugInfo = true; // Показывать отладочную информацию сравнения объектов
+    
     [Header("Public Deception State")]
     public bool isDeceptionActive = false; // Публичное поле для отслеживания состояния Deception
     
@@ -36,6 +41,9 @@ public class ClientManager : MonoBehaviour
     // Zone 3 Object Tracking
     private CursorTagDetector cursorTagDetector; // Ссылка на CursorTagDetector для отслеживания удалений
     private int lastZone3DestructionCount = 0; // Последнее количество удаленных объектов в zone 3
+    
+    // Object Matching
+    private ObjectDataExtractor objectDataExtractor; // Ссылка на ObjectDataExtractor для сравнения объектов
     
     void Start()
     {
@@ -62,6 +70,12 @@ public class ClientManager : MonoBehaviour
         if (trackZone3Destructions)
         {
             FindCursorTagDetector();
+        }
+        
+        // Инициализация сравнения объектов
+        if (checkObjectMatching)
+        {
+            FindObjectDataExtractor();
         }
         
         if (showDebugInfo)
@@ -148,6 +162,66 @@ public class ClientManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Автоматический поиск ObjectDataExtractor на сцене
+    /// </summary>
+    private void FindObjectDataExtractor()
+    {
+        // Ищем компонент ObjectDataExtractor на сцене
+        ObjectDataExtractor foundExtractor = FindObjectOfType<ObjectDataExtractor>();
+        
+        if (foundExtractor != null)
+        {
+            objectDataExtractor = foundExtractor;
+            
+            if (showObjectMatchingDebugInfo)
+            {
+                Debug.Log($"ClientManager: ObjectDataExtractor автоматически найден: {foundExtractor.name}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("ClientManager: ObjectDataExtractor не найден на сцене!");
+        }
+    }
+    
+    /// <summary>
+    /// Проверяет, соответствует ли удаленный объект extracted data
+    /// </summary>
+    private bool IsDestroyedObjectMatchingExtractedData(CursorTagDetector.DestroyedObjectInfo destroyedObject)
+    {
+        if (objectDataExtractor == null) return false;
+        
+        // Получаем extracted data из ObjectDataExtractor
+        ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
+        
+        // Проверяем соответствие по имени объекта
+        bool nameMatches = destroyedObject.objectName == extractedData.Name;
+        
+        // Проверяем соответствие по редкости (если есть)
+        bool rarityMatches = true;
+        if (destroyedObject.hadRandomRarityScript && !string.IsNullOrEmpty(destroyedObject.rarity))
+        {
+            // Здесь можно добавить дополнительную логику сравнения редкости
+            // Пока просто проверяем что у обоих объектов есть редкость
+            rarityMatches = !string.IsNullOrEmpty(extractedData.Name); // Упрощенная проверка
+        }
+        
+        bool isMatching = nameMatches && rarityMatches;
+        
+        if (showObjectMatchingDebugInfo)
+        {
+            Debug.Log($"=== СРАВНЕНИЕ ОБЪЕКТОВ ===");
+            Debug.Log($"Удаленный объект: {destroyedObject.objectName} (редкость: {destroyedObject.rarity})");
+            Debug.Log($"Extracted data: {extractedData.Name}");
+            Debug.Log($"Соответствие по имени: {nameMatches}");
+            Debug.Log($"Соответствие по редкости: {rarityMatches}");
+            Debug.Log($"Общее соответствие: {isMatching}");
+        }
+        
+        return isMatching;
+    }
+    
+    /// <summary>
     /// Автоматический поиск CursorTagDetector на сцене
     /// </summary>
     private void FindCursorTagDetector()
@@ -185,6 +259,9 @@ public class ClientManager : MonoBehaviour
         // Проверяем, увеличилось ли количество удалений
         if (currentDestructionCount > lastZone3DestructionCount)
         {
+            // Получаем список новых удаленных объектов
+            var recentDestroyedObjects = cursorTagDetector.GetDestroyedObjectsInLastSeconds(1f);
+            
             // Обновляем счетчик
             int newDestructions = currentDestructionCount - lastZone3DestructionCount;
             lastZone3DestructionCount = currentDestructionCount;
@@ -194,22 +271,58 @@ public class ClientManager : MonoBehaviour
                 Debug.Log($"ClientManager: Обнаружено {newDestructions} новых удалений в zone 3. Всего: {currentDestructionCount}");
             }
             
-            // Проверяем, активен ли Client
-            if (IsClientActive())
+            // Проверяем каждый новый удаленный объект
+            foreach (var destroyedObject in recentDestroyedObjects)
             {
-                if (showZone3DebugInfo)
-                {
-                    Debug.Log("ClientManager: Client активен во время удаления в zone 3!");
-                }
+                bool shouldDeactivateClient = false;
                 
-                // Автоматически выключаем Client если включено
-                if (autoDeactivateOnZone3Destruction)
+                // Проверяем, активен ли Client
+                if (IsClientActive())
                 {
-                    ForceDeactivateClient();
-                    
                     if (showZone3DebugInfo)
                     {
-                        Debug.Log("ClientManager: Client автоматически выключен из-за удаления в zone 3");
+                        Debug.Log($"ClientManager: Client активен во время удаления объекта '{destroyedObject.objectName}' в zone 3!");
+                    }
+                    
+                    // Проверяем соответствие объекта с extracted data
+                    if (checkObjectMatching)
+                    {
+                        bool objectMatches = IsDestroyedObjectMatchingExtractedData(destroyedObject);
+                        
+                        if (onlyDeactivateOnMatchingObject)
+                        {
+                            // Выключаем Client только если объект соответствует extracted data
+                            shouldDeactivateClient = objectMatches;
+                            
+                            if (showZone3DebugInfo)
+                            {
+                                Debug.Log($"ClientManager: Проверка соответствия объекта - {(objectMatches ? "СООТВЕТСТВУЕТ" : "НЕ СООТВЕТСТВУЕТ")} extracted data");
+                            }
+                        }
+                        else
+                        {
+                            // Выключаем Client при любом удалении (старая логика)
+                            shouldDeactivateClient = true;
+                        }
+                    }
+                    else
+                    {
+                        // Если проверка соответствия отключена, используем старую логику
+                        shouldDeactivateClient = true;
+                    }
+                    
+                    // Автоматически выключаем Client если нужно
+                    if (shouldDeactivateClient && autoDeactivateOnZone3Destruction)
+                    {
+                        ForceDeactivateClient();
+                        
+                        if (showZone3DebugInfo)
+                        {
+                            string reason = checkObjectMatching && onlyDeactivateOnMatchingObject ? 
+                                "из-за удаления соответствующего объекта в zone 3" : 
+                                "из-за удаления объекта в zone 3";
+                            Debug.Log($"ClientManager: Client автоматически выключен {reason}");
+                        }
                     }
                 }
             }
@@ -597,6 +710,88 @@ public class ClientManager : MonoBehaviour
         {
             Debug.LogError("CursorTagDetector не найден для симуляции!");
         }
+    }
+    
+    // ========== КОНТЕКСТНЫЕ МЕНЮ ДЛЯ ТЕСТИРОВАНИЯ OBJECT MATCHING ==========
+    
+    [ContextMenu("Проверить статус Object Matching")]
+    private void TestObjectMatchingStatus()
+    {
+        Debug.Log($"=== СТАТУС OBJECT MATCHING ===");
+        Debug.Log($"Проверка соответствия объектов включена: {checkObjectMatching}");
+        Debug.Log($"Выключение только при соответствии: {onlyDeactivateOnMatchingObject}");
+        Debug.Log($"Отладочная информация Object Matching: {showObjectMatchingDebugInfo}");
+        Debug.Log($"ObjectDataExtractor найден: {(objectDataExtractor != null ? "Да" : "Нет")}");
+        
+        if (objectDataExtractor != null)
+        {
+            Debug.Log($"ObjectDataExtractor: {objectDataExtractor.name}");
+            
+            // Получаем текущие extracted data
+            ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
+            Debug.Log($"Текущий extracted объект: {extractedData.Name}");
+            Debug.Log($"Deception активен: {extractedData.IsDeceptionActive}");
+        }
+        
+        Debug.Log($"Client активен: {IsClientActive()}");
+    }
+    
+    [ContextMenu("Обновить ObjectDataExtractor")]
+    private void TestUpdateObjectDataExtractor()
+    {
+        FindObjectDataExtractor();
+    }
+    
+    [ContextMenu("Включить проверку соответствия объектов")]
+    private void TestEnableObjectMatching()
+    {
+        checkObjectMatching = true;
+        Debug.Log("Проверка соответствия объектов включена!");
+    }
+    
+    [ContextMenu("Выключить проверку соответствия объектов")]
+    private void TestDisableObjectMatching()
+    {
+        checkObjectMatching = false;
+        Debug.Log("Проверка соответствия объектов выключена!");
+    }
+    
+    [ContextMenu("Переключить выключение только при соответствии")]
+    private void TestToggleOnlyDeactivateOnMatching()
+    {
+        onlyDeactivateOnMatchingObject = !onlyDeactivateOnMatchingObject;
+        Debug.Log($"Выключение Client только при соответствии объекта: {(onlyDeactivateOnMatchingObject ? "Включено" : "Выключено")}");
+    }
+    
+    [ContextMenu("Тест сравнения объектов")]
+    private void TestObjectComparison()
+    {
+        if (objectDataExtractor == null)
+        {
+            Debug.LogError("ObjectDataExtractor не найден для тестирования!");
+            return;
+        }
+        
+        // Получаем extracted data
+        ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
+        
+        Debug.Log($"=== ТЕСТ СРАВНЕНИЯ ОБЪЕКТОВ ===");
+        Debug.Log($"Extracted data: {extractedData.Name}");
+        Debug.Log($"Deception активен: {extractedData.IsDeceptionActive}");
+        
+        // Создаем тестовый объект для сравнения
+        CursorTagDetector.DestroyedObjectInfo testObject = new CursorTagDetector.DestroyedObjectInfo(
+            extractedData.Name, // Используем то же имя что и в extracted data
+            "obj",
+            Vector3.zero,
+            Time.time,
+            "Test",
+            true,
+            "Common"
+        );
+        
+        bool matches = IsDestroyedObjectMatchingExtractedData(testObject);
+        Debug.Log($"Тестовый объект соответствует extracted data: {matches}");
     }
     
     void OnDestroy()
