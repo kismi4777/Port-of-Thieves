@@ -875,12 +875,14 @@ public class CursorTagDetector : MonoBehaviour
         // Проверяем наличие скрипта RandomRarityOnSpawn
         bool hadRandomRarityScript = false;
         string rarity = "";
+        int goldAmount = 0;
         
         RandomRarityOnSpawn rarityScript = obj.GetComponent<RandomRarityOnSpawn>();
         if (rarityScript != null)
         {
             hadRandomRarityScript = true;
             rarity = rarityScript.AssignedRarity.ToString();
+            goldAmount = rarityScript.gold; // Извлекаем количество золота
         }
         
         // Создаем запись об удаленном объекте
@@ -891,7 +893,8 @@ public class CursorTagDetector : MonoBehaviour
             Time.time,
             reason,
             hadRandomRarityScript,
-            rarity
+            rarity,
+            goldAmount
         );
         
         // Добавляем в список
@@ -900,7 +903,7 @@ public class CursorTagDetector : MonoBehaviour
         
         if (showTrackingDebugInfo)
         {
-            Debug.Log($"📊 Zone 3 Tracking: Записан удаленный объект '{objectName}' (тег: {objectTag}, редкость: {rarity}, позиция: {destroyPosition})");
+            Debug.Log($"📊 Zone 3 Tracking: Записан удаленный объект '{objectName}' (тег: {objectTag}, редкость: {rarity}, золото: {goldAmount}, позиция: {destroyPosition})");
             Debug.Log($"📊 Zone 3 Tracking: Всего удалено объектов: {totalDestroyedCount}");
         }
     }
@@ -1109,8 +1112,9 @@ public class CursorTagDetector : MonoBehaviour
         public string destroyReason; // Причина удаления
         public bool hadRandomRarityScript; // Был ли у объекта скрипт RandomRarityOnSpawn
         public string rarity; // Редкость объекта (если была)
+        public int gold; // Количество золота объекта
         
-        public DestroyedObjectInfo(string name, string tag, Vector3 position, float time, string reason, bool hadRarityScript = false, string rarityType = "")
+        public DestroyedObjectInfo(string name, string tag, Vector3 position, float time, string reason, bool hadRarityScript = false, string rarityType = "", int goldAmount = 0)
         {
             this.objectName = name;
             this.objectTag = tag;
@@ -1119,6 +1123,7 @@ public class CursorTagDetector : MonoBehaviour
             this.destroyReason = reason;
             this.hadRandomRarityScript = hadRarityScript;
             this.rarity = rarityType;
+            this.gold = goldAmount;
         }
     }
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using PortOfThieves.Resources;
 
 /// <summary>
 /// Менеджер для управления объектом Client
@@ -32,6 +33,11 @@ public class ClientManager : MonoBehaviour
     [SerializeField] private bool onlyDeactivateOnMatchingObject = false; // Выключать Client только если удаленный объект соответствует extracted data
     [SerializeField] private bool showObjectMatchingDebugInfo = true; // Показывать отладочную информацию сравнения объектов
     
+    [Header("Resource Management")]
+    [SerializeField] private ResourceManager resourceManager; // Ссылка на ResourceManager для передачи золота
+    [SerializeField] private bool autoFindResourceManager = true; // Автоматический поиск ResourceManager
+    [SerializeField] private bool transferGoldOnZone3Destruction = true; // Передавать золото при удалении в zone 3
+    
     
     [Header("Public Deception State")]
     public bool isDeceptionActive = false; // Публичное поле для отслеживания состояния Deception
@@ -45,6 +51,9 @@ public class ClientManager : MonoBehaviour
     
     // Object Matching
     private ObjectDataExtractor objectDataExtractor; // Ссылка на ObjectDataExtractor для сравнения объектов
+    
+    // Resource Management
+    private bool resourceManagerSearchAttempted = false; // Флаг попытки поиска ResourceManager
     
     void Start()
     {
@@ -77,6 +86,12 @@ public class ClientManager : MonoBehaviour
         if (checkObjectMatching)
         {
             FindObjectDataExtractor();
+        }
+        
+        // Инициализация ResourceManager
+        if (transferGoldOnZone3Destruction && autoFindResourceManager)
+        {
+            FindResourceManager();
         }
         
         if (showDebugInfo)
@@ -182,6 +197,32 @@ public class ClientManager : MonoBehaviour
         else
         {
             Debug.LogWarning("ClientManager: ObjectDataExtractor не найден на сцене!");
+        }
+    }
+    
+    /// <summary>
+    /// Автоматический поиск ResourceManager на сцене
+    /// </summary>
+    private void FindResourceManager()
+    {
+        if (resourceManagerSearchAttempted) return;
+        resourceManagerSearchAttempted = true;
+        
+        // Ищем компонент ResourceManager на сцене
+        ResourceManager foundResourceManager = FindObjectOfType<ResourceManager>();
+        
+        if (foundResourceManager != null)
+        {
+            resourceManager = foundResourceManager;
+            
+            if (showZone3DebugInfo)
+            {
+                Debug.Log($"ClientManager: ResourceManager автоматически найден: {foundResourceManager.name}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("ClientManager: ResourceManager не найден на сцене!");
         }
     }
     
@@ -326,6 +367,12 @@ public class ClientManager : MonoBehaviour
                         }
                     }
                 }
+                
+                // Передаем золото в ResourceManager при удалении объекта в zone 3
+                if (transferGoldOnZone3Destruction && destroyedObject.gold > 0)
+                {
+                    TransferGoldToResourceManager(destroyedObject);
+                }
             }
         }
     }
@@ -347,6 +394,43 @@ public class ClientManager : MonoBehaviour
             if (showZone3DebugInfo)
             {
                 Debug.Log($"ClientManager: Принудительное обновление отслеживания zone 3. Текущий счетчик: {lastZone3DestructionCount}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Передает золото удаленного объекта в ResourceManager
+    /// </summary>
+    private void TransferGoldToResourceManager(CursorTagDetector.DestroyedObjectInfo destroyedObject)
+    {
+        if (resourceManager == null)
+        {
+            // Попробуем найти ResourceManager если он не найден
+            if (autoFindResourceManager && !resourceManagerSearchAttempted)
+            {
+                FindResourceManager();
+            }
+            
+            if (resourceManager == null)
+            {
+                Debug.LogWarning($"ClientManager: ResourceManager не найден! Золото ({destroyedObject.gold}) от объекта '{destroyedObject.objectName}' не передано.");
+                return;
+            }
+        }
+        
+        // Добавляем золото в ResourceManager
+        bool success = resourceManager.AddGold(destroyedObject.gold);
+        
+        if (showZone3DebugInfo)
+        {
+            if (success)
+            {
+                Debug.Log($"💰 ClientManager: Золото ({destroyedObject.gold}) от объекта '{destroyedObject.objectName}' успешно добавлено в ResourceManager!");
+                Debug.Log($"💰 ClientManager: Текущее количество золота: {resourceManager.GoldAmount}");
+            }
+            else
+            {
+                Debug.LogWarning($"💰 ClientManager: Не удалось добавить золото ({destroyedObject.gold}) от объекта '{destroyedObject.objectName}' в ResourceManager (достигнут максимум)!");
             }
         }
     }

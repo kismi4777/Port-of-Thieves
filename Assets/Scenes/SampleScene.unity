@@ -3229,7 +3229,9 @@ MonoBehaviour:
   checkObjectMatching: 1
   onlyDeactivateOnMatchingObject: 1
   showObjectMatchingDebugInfo: 1
-  tmpTextMeshPro: {fileID: 501074137}
+  resourceManager: {fileID: 1718057386}
+  autoFindResourceManager: 1
+  transferGoldOnZone3Destruction: 1
   isDeceptionActive: 0
 --- !u!1 &947592204
 GameObject:

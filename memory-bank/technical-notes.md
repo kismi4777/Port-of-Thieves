@@ -1458,6 +1458,119 @@ resourceManager.RemoveResource("Gold", 25);
 
 **Статус:** ✅ **СИСТЕМА ПОЛНОСТЬЮ РЕАЛИЗОВАНА И ГОТОВА К ИСПОЛЬЗОВАНИЮ**
 
+## ClientManager - Система передачи золота при удалении в Zone 3 (2024-12-19)
+
+### 🎯 Архитектура системы передачи золота
+
+**Основное назначение:**
+Расширение ClientManager системой автоматической передачи золота в ResourceManager при удалении объектов в zone 3. При удалении объекта с компонентом RandomRarityOnSpawn, его золото автоматически добавляется в ResourceManager.
+
+### 🏗️ Компоненты системы
+
+**1. Структура DestroyedObjectInfo (обновлена):**
+```csharp
+[System.Serializable]
+public struct DestroyedObjectInfo
+{
+    public string objectName;        // Имя удаленного объекта
+    public string objectTag;         // Тег удаленного объекта
+    public Vector3 destroyPosition; // Позиция где был удален объект
+    public float destroyTime;        // Время удаления (Time.time)
+    public string destroyReason;     // Причина удаления
+    public bool hadRandomRarityScript; // Был ли у объекта скрипт RandomRarityOnSpawn
+    public string rarity;            // Редкость объекта (если была)
+    public int gold;                 // Количество золота объекта
+}
+```
+
+**2. Настройки Resource Management в ClientManager:**
+```csharp
+[Header("Resource Management")]
+[SerializeField] private ResourceManager resourceManager; // Ссылка на ResourceManager
+[SerializeField] private bool autoFindResourceManager = true; // Автоматический поиск ResourceManager
+[SerializeField] private bool transferGoldOnZone3Destruction = true; // Передавать золото при удалении в zone 3
+```
+
+**3. Автоматическое извлечение золота:**
+- `RecordDestroyedObject()` - извлекает gold из RandomRarityOnSpawn при удалении
+- `TransferGoldToResourceManager()` - передает золото в ResourceManager
+- `FindResourceManager()` - автоматически находит ResourceManager на сцене
+
+### 🔄 Логика передачи золота
+
+**Процесс передачи:**
+```csharp
+// При удалении объекта в zone 3
+if (transferGoldOnZone3Destruction && destroyedObject.gold > 0)
+{
+    TransferGoldToResourceManager(destroyedObject);
+}
+
+private void TransferGoldToResourceManager(DestroyedObjectInfo destroyedObject)
+{
+    if (resourceManager == null)
+    {
+        FindResourceManager(); // Автоматический поиск если не найден
+    }
+    
+    bool success = resourceManager.AddGold(destroyedObject.gold);
+    
+    if (success)
+    {
+        Debug.Log($"💰 Золото ({destroyedObject.gold}) от объекта '{destroyedObject.objectName}' добавлено!");
+    }
+}
+```
+
+**Интеграция с RandomRarityOnSpawn:**
+- Автоматическое извлечение поля `gold` при удалении объекта
+- Поддержка объектов без RandomRarityOnSpawn (gold = 0)
+- Отладочная информация о передаче золота
+
+### 📊 API методы
+
+**Основные методы передачи золота:**
+```csharp
+// Передать золото удаленного объекта в ResourceManager
+private void TransferGoldToResourceManager(DestroyedObjectInfo destroyedObject)
+
+// Найти ResourceManager на сцене
+private void FindResourceManager()
+
+// Проверить статус передачи золота
+[ContextMenu("Проверить статус Resource Manager")]
+private void TestResourceManagerStatus()
+```
+
+### 🎮 Настройки в Inspector
+
+**Resource Management секция:**
+- **Resource Manager** - ссылка на ResourceManager (автоматически находится)
+- **Auto Find Resource Manager** - автоматический поиск ResourceManager (по умолчанию true)
+- **Transfer Gold On Zone 3 Destruction** - передавать золото при удалении в zone 3 (по умолчанию true)
+
+### 🔍 Отладочная информация
+
+**Логи передачи золота:**
+```
+💰 ClientManager: Золото (150) от объекта 'Sword(Clone)' успешно добавлено в ResourceManager!
+💰 ClientManager: Текущее количество золота: 1150
+```
+
+**Предупреждения:**
+```
+ClientManager: ResourceManager не найден! Золото (75) от объекта 'Shield(Clone)' не передано.
+```
+
+### 📋 Документация
+
+**Обновленные файлы:**
+- `Assets/Scripts/ClientManager.cs` - добавлена система передачи золота
+- `Assets/Scripts/CursorTagDetector.cs` - обновлена структура DestroyedObjectInfo
+- `memory-bank/technical-notes.md` - техническая документация
+
+**Статус:** ✅ **СИСТЕМА ПОЛНОСТЬЮ РЕАЛИЗОВАНА И ГОТОВА К ИСПОЛЬЗОВАНИЮ**
+
 ## Следующие шаги
 
 1. ✅ **Система случайных фраз создана** - ЗАВЕРШЕНО
@@ -1470,6 +1583,7 @@ resourceManager.RemoveResource("Gold", 25);
 8. ✅ **Система отслеживания Zone 3** - ЗАВЕРШЕНО
 9. ✅ **Система отслеживания Deception в ClientManager** - ЗАВЕРШЕНО
 10. ✅ **Resource Manager System** - ЗАВЕРШЕНО
-11. **Интеграция** Resource Manager с существующими системами игры
+11. ✅ **Система передачи золота при удалении в Zone 3** - ЗАВЕРШЕНО
+12. **Дополнительная интеграция** Resource Manager с другими игровыми системами
 
 
