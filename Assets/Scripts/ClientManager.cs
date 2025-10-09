@@ -157,13 +157,17 @@ public class ClientManager : MonoBehaviour
     /// </summary>
     private void UpdateDeceptionState()
     {
-        // Ищем ObjectDataExtractor на сцене
-        ObjectDataExtractor objectDataExtractor = FindObjectOfType<ObjectDataExtractor>();
+        // Используем уже найденный ObjectDataExtractor или ищем заново (включая неактивные)
+        ObjectDataExtractor extractorToUse = objectDataExtractor;
+        if (extractorToUse == null)
+        {
+            extractorToUse = FindObjectOfType<ObjectDataExtractor>(true);
+        }
         
-        if (objectDataExtractor == null) return;
+        if (extractorToUse == null) return;
         
         // Получаем текущее состояние Deception из ObjectDataExtractor
-        bool currentDeceptionState = objectDataExtractor.isDeceptionActive;
+        bool currentDeceptionState = extractorToUse.isDeceptionActive;
         
         // Обновляем публичное поле если состояние изменилось
         if (isDeceptionActive != currentDeceptionState)
@@ -178,12 +182,12 @@ public class ClientManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Автоматический поиск ObjectDataExtractor на сцене
+    /// Автоматический поиск ObjectDataExtractor на сцене (включая неактивные объекты)
     /// </summary>
     private void FindObjectDataExtractor()
     {
-        // Ищем компонент ObjectDataExtractor на сцене
-        ObjectDataExtractor foundExtractor = FindObjectOfType<ObjectDataExtractor>();
+        // Ищем компонент ObjectDataExtractor на сцене (включая неактивные объекты)
+        ObjectDataExtractor foundExtractor = FindObjectOfType<ObjectDataExtractor>(true);
         
         if (foundExtractor != null)
         {
@@ -191,7 +195,7 @@ public class ClientManager : MonoBehaviour
             
             if (showObjectMatchingDebugInfo)
             {
-                Debug.Log($"ClientManager: ObjectDataExtractor автоматически найден: {foundExtractor.name}");
+                Debug.Log($"ClientManager: ObjectDataExtractor автоматически найден: {foundExtractor.name} (активен: {foundExtractor.gameObject.activeInHierarchy})");
             }
         }
         else
@@ -236,10 +240,21 @@ public class ClientManager : MonoBehaviour
     /// </summary>
     private bool IsDestroyedObjectMatchingExtractedData(CursorTagDetector.DestroyedObjectInfo destroyedObject)
     {
-        if (objectDataExtractor == null) return false;
+        // Используем уже найденный ObjectDataExtractor или ищем заново (включая неактивные)
+        ObjectDataExtractor extractorToUse = objectDataExtractor;
+        if (extractorToUse == null)
+        {
+            extractorToUse = FindObjectOfType<ObjectDataExtractor>(true);
+            if (extractorToUse != null)
+            {
+                objectDataExtractor = extractorToUse; // Кэшируем найденный экстрактор
+            }
+        }
+        
+        if (extractorToUse == null) return false;
         
         // Получаем extracted data из ObjectDataExtractor
-        ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
+        ObjectDataExtractor.ObjectData extractedData = extractorToUse.GetExtractedData();
         
         // Удаляем "(Clone)" из имен для корректного сравнения
         string destroyedNameClean = destroyedObject.objectName.Replace("(Clone)", "").Trim();

@@ -165,19 +165,19 @@ public class CursorTagDetector : MonoBehaviour
     }
     
     /// <summary>
-    /// Автоматический поиск ObjectDataExtractor на сцене
+    /// Автоматический поиск ObjectDataExtractor на сцене (включая неактивные объекты)
     /// </summary>
     private void FindObjectDataExtractor()
     {
-        // Ищем компонент ObjectDataExtractor на сцене
-        ObjectDataExtractor foundExtractor = FindObjectOfType<ObjectDataExtractor>();
+        // Ищем компонент ObjectDataExtractor на сцене (включая неактивные объекты)
+        ObjectDataExtractor foundExtractor = FindObjectOfType<ObjectDataExtractor>(true);
         
         if (foundExtractor != null)
         {
             objectDataExtractor = foundExtractor;
             if (showZone3RestrictionDebugInfo)
             {
-                Debug.Log($"CursorTagDetector: ObjectDataExtractor автоматически найден: {foundExtractor.name}");
+                Debug.Log($"CursorTagDetector: ObjectDataExtractor автоматически найден: {foundExtractor.name} (активен: {foundExtractor.gameObject.activeInHierarchy})");
             }
         }
         else
