@@ -19,8 +19,23 @@ public class ClientManager : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = true; // Показывать отладочную информацию
     
+    [Header("Deception Tracking")]
+    [SerializeField] private bool trackDeceptionState = true; // Включить отслеживание состояния Deception
+    
+    [Header("Zone 3 Object Tracking")]
+    [SerializeField] private bool trackZone3Destructions = true; // Включить отслеживание удалений в zone 3
+    [SerializeField] private bool autoDeactivateOnZone3Destruction = true; // Автоматически выключать Client при удалении в zone 3
+    [SerializeField] private bool showZone3DebugInfo = true; // Показывать отладочную информацию zone 3
+    
+    [Header("Public Deception State")]
+    public bool isDeceptionActive = false; // Публичное поле для отслеживания состояния Deception
+    
     private Coroutine activationTimerCoroutine; // Корутина таймера
     private bool isTimerRunning = false; // Флаг работы таймера
+    
+    // Zone 3 Object Tracking
+    private CursorTagDetector cursorTagDetector; // Ссылка на CursorTagDetector для отслеживания удалений
+    private int lastZone3DestructionCount = 0; // Последнее количество удаленных объектов в zone 3
     
     void Start()
     {
@@ -41,6 +56,12 @@ public class ClientManager : MonoBehaviour
         if (startTimerOnAwake && enableTimer && !clientObject.activeInHierarchy)
         {
             StartActivationTimer();
+        }
+        
+        // Инициализация отслеживания zone 3
+        if (trackZone3Destructions)
+        {
+            FindCursorTagDetector();
         }
         
         if (showDebugInfo)
@@ -65,6 +86,18 @@ public class ClientManager : MonoBehaviour
                 StopActivationTimer();
             }
         }
+        
+        // Отслеживаем состояние Deception если включено
+        if (trackDeceptionState)
+        {
+            UpdateDeceptionState();
+        }
+        
+        // Отслеживаем удаления в zone 3
+        if (trackZone3Destructions)
+        {
+            UpdateZone3DestructionTracking();
+        }
     }
     
     /// <summary>
@@ -86,6 +119,121 @@ public class ClientManager : MonoBehaviour
         else
         {
             Debug.LogWarning("ClientManager: Объект с именем 'Client' не найден на сцене!");
+        }
+    }
+    
+    /// <summary>
+    /// Обновление состояния Deception из ObjectDataExtractor
+    /// </summary>
+    private void UpdateDeceptionState()
+    {
+        // Ищем ObjectDataExtractor на сцене
+        ObjectDataExtractor objectDataExtractor = FindObjectOfType<ObjectDataExtractor>();
+        
+        if (objectDataExtractor == null) return;
+        
+        // Получаем текущее состояние Deception из ObjectDataExtractor
+        bool currentDeceptionState = objectDataExtractor.isDeceptionActive;
+        
+        // Обновляем публичное поле если состояние изменилось
+        if (isDeceptionActive != currentDeceptionState)
+        {
+            isDeceptionActive = currentDeceptionState;
+            
+            if (showDebugInfo)
+            {
+                Debug.Log($"ClientManager: Состояние Deception обновлено: {isDeceptionActive}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Автоматический поиск CursorTagDetector на сцене
+    /// </summary>
+    private void FindCursorTagDetector()
+    {
+        // Ищем компонент CursorTagDetector на сцене
+        CursorTagDetector foundDetector = FindObjectOfType<CursorTagDetector>();
+        
+        if (foundDetector != null)
+        {
+            cursorTagDetector = foundDetector;
+            lastZone3DestructionCount = foundDetector.GetTotalDestroyedCount();
+            
+            if (showZone3DebugInfo)
+            {
+                Debug.Log($"ClientManager: CursorTagDetector автоматически найден: {foundDetector.name}");
+                Debug.Log($"ClientManager: Начальное количество удаленных объектов в zone 3: {lastZone3DestructionCount}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("ClientManager: CursorTagDetector не найден на сцене!");
+        }
+    }
+    
+    /// <summary>
+    /// Отслеживание удалений объектов в zone 3
+    /// </summary>
+    private void UpdateZone3DestructionTracking()
+    {
+        if (cursorTagDetector == null) return;
+        
+        // Получаем текущее количество удаленных объектов
+        int currentDestructionCount = cursorTagDetector.GetTotalDestroyedCount();
+        
+        // Проверяем, увеличилось ли количество удалений
+        if (currentDestructionCount > lastZone3DestructionCount)
+        {
+            // Обновляем счетчик
+            int newDestructions = currentDestructionCount - lastZone3DestructionCount;
+            lastZone3DestructionCount = currentDestructionCount;
+            
+            if (showZone3DebugInfo)
+            {
+                Debug.Log($"ClientManager: Обнаружено {newDestructions} новых удалений в zone 3. Всего: {currentDestructionCount}");
+            }
+            
+            // Проверяем, активен ли Client
+            if (IsClientActive())
+            {
+                if (showZone3DebugInfo)
+                {
+                    Debug.Log("ClientManager: Client активен во время удаления в zone 3!");
+                }
+                
+                // Автоматически выключаем Client если включено
+                if (autoDeactivateOnZone3Destruction)
+                {
+                    ForceDeactivateClient();
+                    
+                    if (showZone3DebugInfo)
+                    {
+                        Debug.Log("ClientManager: Client автоматически выключен из-за удаления в zone 3");
+                    }
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Принудительное обновление отслеживания zone 3
+    /// </summary>
+    public void ForceUpdateZone3Tracking()
+    {
+        if (cursorTagDetector == null)
+        {
+            FindCursorTagDetector();
+        }
+        
+        if (cursorTagDetector != null)
+        {
+            lastZone3DestructionCount = cursorTagDetector.GetTotalDestroyedCount();
+            
+            if (showZone3DebugInfo)
+            {
+                Debug.Log($"ClientManager: Принудительное обновление отслеживания zone 3. Текущий счетчик: {lastZone3DestructionCount}");
+            }
         }
     }
     
@@ -298,6 +446,40 @@ public class ClientManager : MonoBehaviour
         return activationDelay;
     }
     
+    /// <summary>
+    /// Получение текущего состояния Deception
+    /// </summary>
+    public bool GetDeceptionState()
+    {
+        return isDeceptionActive;
+    }
+    
+    /// <summary>
+    /// Включение/выключение отслеживания состояния Deception
+    /// </summary>
+    public void SetDeceptionTrackingEnabled(bool enabled)
+    {
+        trackDeceptionState = enabled;
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"ClientManager: Отслеживание Deception {(enabled ? "включено" : "выключено")}");
+        }
+    }
+    
+    /// <summary>
+    /// Принудительное обновление состояния Deception
+    /// </summary>
+    public void ForceUpdateDeceptionState()
+    {
+        UpdateDeceptionState();
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"ClientManager: Принудительное обновление состояния Deception: {isDeceptionActive}");
+        }
+    }
+    
     // Контекстные меню для тестирования
     [ContextMenu("Запустить таймер включения")]
     private void TestStartTimer()
@@ -332,6 +514,89 @@ public class ClientManager : MonoBehaviour
         Debug.Log($"Таймер запущен: {IsTimerRunning()}");
         Debug.Log($"Задержка таймера: {activationDelay} секунд");
         Debug.Log($"Таймер включен: {enableTimer}");
+        Debug.Log($"Отслеживание Deception: {trackDeceptionState}");
+        Debug.Log($"Состояние Deception: {isDeceptionActive}");
+    }
+    
+    [ContextMenu("Обновить состояние Deception")]
+    private void TestUpdateDeception()
+    {
+        ForceUpdateDeceptionState();
+    }
+    
+    [ContextMenu("Включить отслеживание Deception")]
+    private void TestEnableDeceptionTracking()
+    {
+        SetDeceptionTrackingEnabled(true);
+    }
+    
+    [ContextMenu("Выключить отслеживание Deception")]
+    private void TestDisableDeceptionTracking()
+    {
+        SetDeceptionTrackingEnabled(false);
+    }
+    
+    // ========== КОНТЕКСТНЫЕ МЕНЮ ДЛЯ ТЕСТИРОВАНИЯ ZONE 3 TRACKING ==========
+    
+    [ContextMenu("Проверить статус Zone 3 Tracking")]
+    private void TestZone3TrackingStatus()
+    {
+        Debug.Log($"=== СТАТУС ZONE 3 TRACKING ===");
+        Debug.Log($"Отслеживание Zone 3 включено: {trackZone3Destructions}");
+        Debug.Log($"Автовыключение Client при удалении: {autoDeactivateOnZone3Destruction}");
+        Debug.Log($"Отладочная информация Zone 3: {showZone3DebugInfo}");
+        Debug.Log($"CursorTagDetector найден: {(cursorTagDetector != null ? "Да" : "Нет")}");
+        
+        if (cursorTagDetector != null)
+        {
+            Debug.Log($"CursorTagDetector: {cursorTagDetector.name}");
+            Debug.Log($"Текущий счетчик удалений: {cursorTagDetector.GetTotalDestroyedCount()}");
+            Debug.Log($"Последний отслеживаемый счетчик: {lastZone3DestructionCount}");
+        }
+        
+        Debug.Log($"Client активен: {IsClientActive()}");
+    }
+    
+    [ContextMenu("Обновить отслеживание Zone 3")]
+    private void TestUpdateZone3Tracking()
+    {
+        ForceUpdateZone3Tracking();
+    }
+    
+    [ContextMenu("Включить отслеживание Zone 3")]
+    private void TestEnableZone3Tracking()
+    {
+        trackZone3Destructions = true;
+        Debug.Log("Отслеживание Zone 3 включено!");
+    }
+    
+    [ContextMenu("Выключить отслеживание Zone 3")]
+    private void TestDisableZone3Tracking()
+    {
+        trackZone3Destructions = false;
+        Debug.Log("Отслеживание Zone 3 выключено!");
+    }
+    
+    [ContextMenu("Переключить автовыключение Client при удалении")]
+    private void TestToggleAutoDeactivateOnDestruction()
+    {
+        autoDeactivateOnZone3Destruction = !autoDeactivateOnZone3Destruction;
+        Debug.Log($"Автовыключение Client при удалении в Zone 3: {(autoDeactivateOnZone3Destruction ? "Включено" : "Выключено")}");
+    }
+    
+    [ContextMenu("Симулировать удаление в Zone 3")]
+    private void TestSimulateZone3Destruction()
+    {
+        if (cursorTagDetector != null)
+        {
+            // Увеличиваем счетчик для симуляции
+            lastZone3DestructionCount = cursorTagDetector.GetTotalDestroyedCount() - 1;
+            Debug.Log("Симуляция удаления в Zone 3 - счетчик уменьшен на 1");
+        }
+        else
+        {
+            Debug.LogError("CursorTagDetector не найден для симуляции!");
+        }
     }
     
     void OnDestroy()

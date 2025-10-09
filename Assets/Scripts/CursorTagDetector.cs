@@ -55,6 +55,14 @@ public class CursorTagDetector : MonoBehaviour
     [Header("PrefabSpawner Integration")]
     public PrefabSpawner prefabSpawner; // Ссылка на PrefabSpawner для уведомлений
     
+    [Header("Zone 3 Tracking")]
+    public bool enableZone3Tracking = true; // Включить отслеживание удаленных объектов в zone 3
+    public bool showTrackingDebugInfo = true; // Показывать отладочную информацию отслеживания
+    
+    [Header("Zone 3 Client Integration")]
+    public bool requireClientActiveForZone3 = true; // Zone 3 активна только когда Client активен
+    public bool autoFindClientManager = true; // Автоматический поиск ClientManager
+    
     
     private Camera mainCamera;
     private Mouse mouse;
@@ -66,6 +74,22 @@ public class CursorTagDetector : MonoBehaviour
     private bool isInDropZone2 = false; // Флаг нахождения в drop zone 2
     private bool isInDropZone3 = false; // Флаг нахождения в drop zone 3
     private AudioSource audioSource; // Компонент для воспроизведения звуков
+    
+    // Система отслеживания удаленных объектов в zone 3
+    private System.Collections.Generic.List<DestroyedObjectInfo> destroyedObjects = new System.Collections.Generic.List<DestroyedObjectInfo>();
+    private int totalDestroyedCount = 0; // Общее количество удаленных объектов
+    
+    // Ссылка на ClientManager для проверки активности Client
+    private ClientManager clientManager;
+    
+    // Кэширование состояния Client для оптимизации
+    private bool cachedClientActiveState = false;
+    private bool clientStateCached = false;
+    
+    // Кэширование ссылки на ClientManager для оптимизации
+    private bool clientManagerSearchAttempted = false;
+    private float lastClientManagerSearchTime = 0f;
+    private float clientManagerSearchInterval = 5f; // Поиск ClientManager каждые 5 секунд
     
     
     void Start()
@@ -92,7 +116,107 @@ public class CursorTagDetector : MonoBehaviour
         audioSource.bypassListenerEffects = true;
         audioSource.bypassReverbZones = true;
         
+        // Автоматический поиск ClientManager если включен
+        if (autoFindClientManager)
+        {
+            FindClientManager();
+        }
+        
         Debug.Log($"Camera found: {mainCamera.name}, Position: {mainCamera.transform.position}");
+    }
+    
+    /// <summary>
+    /// Автоматический поиск ClientManager на сцене
+    /// </summary>
+    private void FindClientManager()
+    {
+        // Ищем компонент ClientManager на сцене
+        ClientManager foundManager = FindObjectOfType<ClientManager>();
+        
+        if (foundManager != null)
+        {
+            clientManager = foundManager;
+            if (showTrackingDebugInfo)
+            {
+                Debug.Log($"CursorTagDetector: ClientManager автоматически найден: {foundManager.name}");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("CursorTagDetector: ClientManager не найден на сцене!");
+        }
+    }
+    
+    /// <summary>
+    /// Проверяет, активен ли Client (для активации zone 3) с кэшированием
+    /// </summary>
+    private bool IsClientActive()
+    {
+        if (!requireClientActiveForZone3)
+        {
+            return true; // Если не требуется активность Client, всегда возвращаем true
+        }
+        
+        // Проверяем, нужно ли искать ClientManager
+        bool shouldSearchClientManager = false;
+        
+        if (clientManager == null)
+        {
+            float currentTime = Time.time;
+            
+            // Ищем ClientManager только если:
+            // 1. Поиск еще не предпринимался, ИЛИ
+            // 2. Прошло достаточно времени с последнего поиска
+            if (!clientManagerSearchAttempted || (currentTime - lastClientManagerSearchTime) >= clientManagerSearchInterval)
+            {
+                shouldSearchClientManager = true;
+                lastClientManagerSearchTime = currentTime;
+                clientManagerSearchAttempted = true;
+            }
+        }
+        
+        // Ищем ClientManager если нужно
+        if (shouldSearchClientManager)
+        {
+            FindClientManager();
+        }
+        
+        if (clientManager == null)
+        {
+            // Не логируем предупреждение каждый кадр, только при первом поиске
+            if (shouldSearchClientManager && showTrackingDebugInfo)
+            {
+                Debug.LogWarning("CursorTagDetector: ClientManager не найден для проверки активности Client!");
+            }
+            return false;
+        }
+        
+        // Получаем текущее состояние Client
+        bool currentClientState = clientManager.IsClientActive();
+        
+        // Обновляем кэш только если состояние изменилось
+        if (!clientStateCached || cachedClientActiveState != currentClientState)
+        {
+            cachedClientActiveState = currentClientState;
+            clientStateCached = true;
+            
+            if (showTrackingDebugInfo)
+            {
+                Debug.Log($"CursorTagDetector: Состояние Client обновлено: {cachedClientActiveState}");
+            }
+        }
+        
+        return cachedClientActiveState;
+    }
+    
+    /// <summary>
+    /// Принудительно обновляет кэш состояния Client
+    /// </summary>
+    public void RefreshClientStateCache()
+    {
+        clientStateCached = false;
+        clientManagerSearchAttempted = false; // Сбрасываем кэш поиска ClientManager
+        IsClientActive(); // Принудительно обновляем кэш
     }
     
     void Update()
@@ -243,9 +367,36 @@ public class CursorTagDetector : MonoBehaviour
                     }
                     else if (IsPositionInDropZone3(worldPosition))
                     {
+                        // Проверяем, активен ли Client для активации zone 3
+                        if (!IsClientActive())
+                        {
+                            if (showTrackingDebugInfo)
+                            {
+                                Debug.Log($"Zone 3 неактивна - Client не активен. Объект {draggedObject.name} возвращен на исходную позицию.");
+                            }
+                            
+                            // Возвращаем объект на исходную позицию
+                            draggedObject.position = originalPosition;
+                            draggedObject.localScale = originalScale;
+                            
+                            // Сбрасываем переменные перетаскивания
+                            isDragging = false;
+                            draggedObject = null;
+                            isInDropZone2 = false;
+                            isInDropZone3 = false;
+                            
+                            return;
+                        }
+                        
                         // Проверяем, нужно ли удалить объект в третьей зоне
                         if (useDropZone3Destroy)
                         {
+                            // Записываем информацию об объекте перед удалением
+                            if (enableZone3Tracking)
+                            {
+                                RecordDestroyedObject(draggedObject.gameObject, worldPosition, "Zone 3 Destroy");
+                            }
+                            
                             // Уведомляем PrefabSpawner об удалении объекта
                             if (prefabSpawner != null)
                             {
@@ -387,6 +538,16 @@ public class CursorTagDetector : MonoBehaviour
         // Проверяем третью дроп зону
         if (IsPositionInZone(position, zone3Center, zone3Size))
         {
+            // Проверяем, активен ли Client для zone 3
+            if (!IsClientActive())
+            {
+                if (showTrackingDebugInfo)
+                {
+                    Debug.Log("Zone 3 неактивна - Client не активен");
+                }
+                return false;
+            }
+            
             Debug.Log("Объект помещен в третью дроп зону");
             return true;
         }
@@ -415,6 +576,12 @@ public class CursorTagDetector : MonoBehaviour
     // Проверяет, находится ли позиция в drop zone 3
     public bool IsPositionInDropZone3(Vector3 position)
     {
+        // Проверяем, активен ли Client для zone 3
+        if (!IsClientActive())
+        {
+            return false;
+        }
+        
         return IsPositionInZone(position, zone3Center, zone3Size);
     }
     
@@ -572,7 +739,386 @@ public class CursorTagDetector : MonoBehaviour
             // Показываем центр третьей зоны
             Gizmos.color = Color.magenta;
             Gizmos.DrawWireSphere(new Vector3(zone3Center.x, zone3Center.y, 0), 0.2f);
+            
+            // Показываем статус активности zone 3
+            if (requireClientActiveForZone3)
+            {
+                bool isClientActive = IsClientActive();
+                Gizmos.color = isClientActive ? Color.green : Color.red;
+                Gizmos.DrawWireSphere(new Vector3(zone3Center.x, zone3Center.y + 1f, 0), 0.1f);
+                
+                #if UNITY_EDITOR
+                UnityEditor.Handles.Label(new Vector3(zone3Center.x, zone3Center.y + 1.5f, 0), 
+                    isClientActive ? "Zone 3: ACTIVE" : "Zone 3: INACTIVE (Client not active)");
+                #endif
+            }
         }
         
+    }
+    
+    // ========== КОНТЕКСТНЫЕ МЕНЮ ДЛЯ ТЕСТИРОВАНИЯ ZONE 3 CLIENT INTEGRATION ==========
+    
+    [ContextMenu("Проверить статус Client для Zone 3")]
+    private void TestClientStatusForZone3()
+    {
+        bool isClientActive = IsClientActive();
+        Debug.Log($"=== СТАТУС CLIENT ДЛЯ ZONE 3 ===");
+        Debug.Log($"Client активен: {isClientActive}");
+        Debug.Log($"Требуется активность Client для Zone 3: {requireClientActiveForZone3}");
+        Debug.Log($"ClientManager найден: {(clientManager != null ? "Да" : "Нет")}");
+        
+        if (clientManager != null)
+        {
+            Debug.Log($"ClientManager: {clientManager.name}");
+            Debug.Log($"Client объект активен: {clientManager.IsClientActive()}");
+        }
+        
+        Debug.Log($"Zone 3 будет активна: {isClientActive || !requireClientActiveForZone3}");
+    }
+    
+    [ContextMenu("Принудительно включить Client")]
+    private void TestForceActivateClient()
+    {
+        if (clientManager != null)
+        {
+            clientManager.ForceActivateClient();
+            Debug.Log("Client принудительно включен!");
+        }
+        else
+        {
+            Debug.LogError("ClientManager не найден!");
+        }
+    }
+    
+    [ContextMenu("Принудительно выключить Client")]
+    private void TestForceDeactivateClient()
+    {
+        if (clientManager != null)
+        {
+            clientManager.ForceDeactivateClient();
+            Debug.Log("Client принудительно выключен!");
+        }
+        else
+        {
+            Debug.LogError("ClientManager не найден!");
+        }
+    }
+    
+    [ContextMenu("Переключить требование активности Client для Zone 3")]
+    private void TestToggleRequireClientActive()
+    {
+        requireClientActiveForZone3 = !requireClientActiveForZone3;
+        Debug.Log($"Требование активности Client для Zone 3: {(requireClientActiveForZone3 ? "Включено" : "Выключено")}");
+    }
+    
+    [ContextMenu("Обновить кэш состояния Client")]
+    private void TestRefreshClientCache()
+    {
+        RefreshClientStateCache();
+        Debug.Log($"Кэш состояния Client обновлен. Текущее состояние: {cachedClientActiveState}");
+    }
+    
+    [ContextMenu("Показать информацию о кэшировании")]
+    private void TestShowCacheInfo()
+    {
+        Debug.Log($"=== ИНФОРМАЦИЯ О КЭШИРОВАНИИ CLIENT ===");
+        Debug.Log($"Кэш инициализирован: {clientStateCached}");
+        Debug.Log($"Кэшированное состояние Client: {cachedClientActiveState}");
+        Debug.Log($"ClientManager найден: {(clientManager != null ? "Да" : "Нет")}");
+        Debug.Log($"Поиск ClientManager предпринимался: {clientManagerSearchAttempted}");
+        Debug.Log($"Время последнего поиска: {lastClientManagerSearchTime:F2}");
+        Debug.Log($"Интервал поиска: {clientManagerSearchInterval} секунд");
+        
+        if (clientManager != null)
+        {
+            bool realClientState = clientManager.IsClientActive();
+            Debug.Log($"Реальное состояние Client: {realClientState}");
+            Debug.Log($"Кэш синхронизирован: {cachedClientActiveState == realClientState}");
+        }
+    }
+    
+    [ContextMenu("Сбросить кэш поиска ClientManager")]
+    private void TestResetClientManagerCache()
+    {
+        clientManagerSearchAttempted = false;
+        lastClientManagerSearchTime = 0f;
+        Debug.Log("Кэш поиска ClientManager сброшен!");
+    }
+    
+    [ContextMenu("Установить интервал поиска ClientManager (1 сек)")]
+    private void TestSetSearchInterval1Sec()
+    {
+        clientManagerSearchInterval = 1f;
+        Debug.Log($"Интервал поиска ClientManager установлен: {clientManagerSearchInterval} секунд");
+    }
+    
+    [ContextMenu("Установить интервал поиска ClientManager (10 сек)")]
+    private void TestSetSearchInterval10Sec()
+    {
+        clientManagerSearchInterval = 10f;
+        Debug.Log($"Интервал поиска ClientManager установлен: {clientManagerSearchInterval} секунд");
+    }
+    
+    // ========== СИСТЕМА ОТСЛЕЖИВАНИЯ УДАЛЕННЫХ ОБЪЕКТОВ В ZONE 3 ==========
+    
+    /// <summary>
+    /// Записывает информацию об удаленном объекте
+    /// </summary>
+    private void RecordDestroyedObject(GameObject obj, Vector3 destroyPosition, string reason)
+    {
+        if (obj == null) return;
+        
+        // Получаем информацию об объекте
+        string objectName = obj.name;
+        string objectTag = obj.tag;
+        
+        // Проверяем наличие скрипта RandomRarityOnSpawn
+        bool hadRandomRarityScript = false;
+        string rarity = "";
+        
+        RandomRarityOnSpawn rarityScript = obj.GetComponent<RandomRarityOnSpawn>();
+        if (rarityScript != null)
+        {
+            hadRandomRarityScript = true;
+            rarity = rarityScript.AssignedRarity.ToString();
+        }
+        
+        // Создаем запись об удаленном объекте
+        DestroyedObjectInfo destroyedInfo = new DestroyedObjectInfo(
+            objectName,
+            objectTag,
+            destroyPosition,
+            Time.time,
+            reason,
+            hadRandomRarityScript,
+            rarity
+        );
+        
+        // Добавляем в список
+        destroyedObjects.Add(destroyedInfo);
+        totalDestroyedCount++;
+        
+        if (showTrackingDebugInfo)
+        {
+            Debug.Log($"📊 Zone 3 Tracking: Записан удаленный объект '{objectName}' (тег: {objectTag}, редкость: {rarity}, позиция: {destroyPosition})");
+            Debug.Log($"📊 Zone 3 Tracking: Всего удалено объектов: {totalDestroyedCount}");
+        }
+    }
+    
+    /// <summary>
+    /// Получить общее количество удаленных объектов в zone 3
+    /// </summary>
+    public int GetTotalDestroyedCount()
+    {
+        return totalDestroyedCount;
+    }
+    
+    /// <summary>
+    /// Получить количество удаленных объектов за последние N секунд
+    /// </summary>
+    public int GetDestroyedCountInLastSeconds(float seconds)
+    {
+        float currentTime = Time.time;
+        int count = 0;
+        
+        foreach (DestroyedObjectInfo info in destroyedObjects)
+        {
+            if (currentTime - info.destroyTime <= seconds)
+            {
+                count++;
+            }
+        }
+        
+        return count;
+    }
+    
+    /// <summary>
+    /// Получить список всех удаленных объектов
+    /// </summary>
+    public System.Collections.Generic.List<DestroyedObjectInfo> GetAllDestroyedObjects()
+    {
+        return new System.Collections.Generic.List<DestroyedObjectInfo>(destroyedObjects);
+    }
+    
+    /// <summary>
+    /// Получить список удаленных объектов за последние N секунд
+    /// </summary>
+    public System.Collections.Generic.List<DestroyedObjectInfo> GetDestroyedObjectsInLastSeconds(float seconds)
+    {
+        float currentTime = Time.time;
+        System.Collections.Generic.List<DestroyedObjectInfo> recentObjects = new System.Collections.Generic.List<DestroyedObjectInfo>();
+        
+        foreach (DestroyedObjectInfo info in destroyedObjects)
+        {
+            if (currentTime - info.destroyTime <= seconds)
+            {
+                recentObjects.Add(info);
+            }
+        }
+        
+        return recentObjects;
+    }
+    
+    /// <summary>
+    /// Получить статистику по типам объектов
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, int> GetDestroyedObjectsByType()
+    {
+        System.Collections.Generic.Dictionary<string, int> typeStats = new System.Collections.Generic.Dictionary<string, int>();
+        
+        foreach (DestroyedObjectInfo info in destroyedObjects)
+        {
+            if (typeStats.ContainsKey(info.objectName))
+            {
+                typeStats[info.objectName]++;
+            }
+            else
+            {
+                typeStats[info.objectName] = 1;
+            }
+        }
+        
+        return typeStats;
+    }
+    
+    /// <summary>
+    /// Получить статистику по редкости объектов
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, int> GetDestroyedObjectsByRarity()
+    {
+        System.Collections.Generic.Dictionary<string, int> rarityStats = new System.Collections.Generic.Dictionary<string, int>();
+        
+        foreach (DestroyedObjectInfo info in destroyedObjects)
+        {
+            string rarityKey = string.IsNullOrEmpty(info.rarity) ? "Без редкости" : info.rarity;
+            
+            if (rarityStats.ContainsKey(rarityKey))
+            {
+                rarityStats[rarityKey]++;
+            }
+            else
+            {
+                rarityStats[rarityKey] = 1;
+            }
+        }
+        
+        return rarityStats;
+    }
+    
+    /// <summary>
+    /// Очистить историю удаленных объектов
+    /// </summary>
+    public void ClearDestroyedObjectsHistory()
+    {
+        destroyedObjects.Clear();
+        totalDestroyedCount = 0;
+        
+        if (showTrackingDebugInfo)
+        {
+            Debug.Log("📊 Zone 3 Tracking: История удаленных объектов очищена");
+        }
+    }
+    
+    /// <summary>
+    /// Получить среднее время между удалениями объектов
+    /// </summary>
+    public float GetAverageTimeBetweenDestructions()
+    {
+        if (destroyedObjects.Count < 2)
+        {
+            return 0f;
+        }
+        
+        float totalTime = 0f;
+        for (int i = 1; i < destroyedObjects.Count; i++)
+        {
+            totalTime += destroyedObjects[i].destroyTime - destroyedObjects[i - 1].destroyTime;
+        }
+        
+        return totalTime / (destroyedObjects.Count - 1);
+    }
+    
+    /// <summary>
+    /// Показать полную статистику удаленных объектов
+    /// </summary>
+    public void ShowDestroyedObjectsStats()
+    {
+        Debug.Log("📊 ========== СТАТИСТИКА УДАЛЕННЫХ ОБЪЕКТОВ В ZONE 3 ==========");
+        Debug.Log($"📊 Общее количество удаленных объектов: {totalDestroyedCount}");
+        Debug.Log($"📊 Удалено за последние 10 секунд: {GetDestroyedCountInLastSeconds(10f)}");
+        Debug.Log($"📊 Удалено за последние 60 секунд: {GetDestroyedCountInLastSeconds(60f)}");
+        
+        if (totalDestroyedCount > 0)
+        {
+            Debug.Log($"📊 Среднее время между удалениями: {GetAverageTimeBetweenDestructions():F2} секунд");
+            
+            // Статистика по типам
+            var typeStats = GetDestroyedObjectsByType();
+            Debug.Log("📊 Статистика по типам объектов:");
+            foreach (var kvp in typeStats)
+            {
+                Debug.Log($"📊   - {kvp.Key}: {kvp.Value} раз");
+            }
+            
+            // Статистика по редкости
+            var rarityStats = GetDestroyedObjectsByRarity();
+            Debug.Log("📊 Статистика по редкости:");
+            foreach (var kvp in rarityStats)
+            {
+                Debug.Log($"📊   - {kvp.Key}: {kvp.Value} раз");
+            }
+        }
+        
+        Debug.Log("📊 ==========================================================");
+    }
+    
+    // Контекстные меню для тестирования отслеживания
+    [ContextMenu("Показать статистику удаленных объектов")]
+    private void TestShowStats()
+    {
+        ShowDestroyedObjectsStats();
+    }
+    
+    [ContextMenu("Очистить историю удаленных объектов")]
+    private void TestClearHistory()
+    {
+        ClearDestroyedObjectsHistory();
+    }
+    
+    [ContextMenu("Показать последние 5 удаленных объектов")]
+    private void TestShowRecent()
+    {
+        var recentObjects = GetDestroyedObjectsInLastSeconds(300f); // За последние 5 минут
+        Debug.Log($"📊 Последние {Mathf.Min(5, recentObjects.Count)} удаленных объектов:");
+        
+        for (int i = Mathf.Max(0, recentObjects.Count - 5); i < recentObjects.Count; i++)
+        {
+            var info = recentObjects[i];
+            Debug.Log($"📊   {i + 1}. {info.objectName} (тег: {info.objectTag}, редкость: {info.rarity}, время: {info.destroyTime:F2})");
+        }
+    }
+    
+    // Структура для хранения информации об удаленных объектах
+    [System.Serializable]
+    public struct DestroyedObjectInfo
+    {
+        public string objectName; // Имя удаленного объекта
+        public string objectTag; // Тег удаленного объекта
+        public Vector3 destroyPosition; // Позиция где был удален объект
+        public float destroyTime; // Время удаления (Time.time)
+        public string destroyReason; // Причина удаления
+        public bool hadRandomRarityScript; // Был ли у объекта скрипт RandomRarityOnSpawn
+        public string rarity; // Редкость объекта (если была)
+        
+        public DestroyedObjectInfo(string name, string tag, Vector3 position, float time, string reason, bool hadRarityScript = false, string rarityType = "")
+        {
+            this.objectName = name;
+            this.objectTag = tag;
+            this.destroyPosition = position;
+            this.destroyTime = time;
+            this.destroyReason = reason;
+            this.hadRandomRarityScript = hadRarityScript;
+            this.rarity = rarityType;
+        }
     }
 }
