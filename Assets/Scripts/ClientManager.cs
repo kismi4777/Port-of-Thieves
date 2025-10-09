@@ -197,6 +197,11 @@ public class ClientManager : MonoBehaviour
         else
         {
             Debug.LogWarning("ClientManager: ObjectDataExtractor не найден на сцене!");
+            
+            if (showObjectMatchingDebugInfo)
+            {
+                Debug.LogWarning("ClientManager: Проверка соответствия объектов будет отключена. Убедитесь что ObjectDataExtractor присутствует на сцене.");
+            }
         }
     }
     
@@ -329,28 +334,51 @@ public class ClientManager : MonoBehaviour
                     // Проверяем соответствие объекта с extracted data
                     if (checkObjectMatching)
                     {
-                        bool objectMatches = IsDestroyedObjectMatchingExtractedData(destroyedObject);
-                        
-                        if (onlyDeactivateOnMatchingObject)
+                        if (objectDataExtractor == null)
                         {
-                            // Выключаем Client только если объект соответствует extracted data
-                            shouldDeactivateClient = objectMatches;
+                            // Если ObjectDataExtractor не найден, используем старую логику
+                            shouldDeactivateClient = true;
                             
                             if (showZone3DebugInfo)
                             {
-                                Debug.Log($"ClientManager: Проверка соответствия объекта - {(objectMatches ? "СООТВЕТСТВУЕТ" : "НЕ СООТВЕТСТВУЕТ")} extracted data");
+                                Debug.LogWarning("ClientManager: ObjectDataExtractor не найден! Используется старая логика - Client будет выключен при любом удалении в zone 3");
                             }
                         }
                         else
                         {
-                            // Выключаем Client при любом удалении (старая логика)
-                            shouldDeactivateClient = true;
+                            bool objectMatches = IsDestroyedObjectMatchingExtractedData(destroyedObject);
+                            
+                            if (onlyDeactivateOnMatchingObject)
+                            {
+                                // Выключаем Client только если объект соответствует extracted data
+                                shouldDeactivateClient = objectMatches;
+                                
+                                if (showZone3DebugInfo)
+                                {
+                                    Debug.Log($"ClientManager: Проверка соответствия объекта - {(objectMatches ? "СООТВЕТСТВУЕТ" : "НЕ СООТВЕТСТВУЕТ")} extracted data");
+                                }
+                            }
+                            else
+                            {
+                                // Выключаем Client при любом удалении (старая логика)
+                                shouldDeactivateClient = true;
+                                
+                                if (showZone3DebugInfo)
+                                {
+                                    Debug.Log("ClientManager: Проверка соответствия включена, но выключение только при соответствии отключено - Client будет выключен при любом удалении");
+                                }
+                            }
                         }
                     }
                     else
                     {
                         // Если проверка соответствия отключена, используем старую логику
                         shouldDeactivateClient = true;
+                        
+                        if (showZone3DebugInfo)
+                        {
+                            Debug.Log("ClientManager: Проверка соответствия отключена - Client будет выключен при любом удалении в zone 3");
+                        }
                     }
                     
                     // Автоматически выключаем Client если нужно
@@ -678,6 +706,19 @@ public class ClientManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Принудительный поиск ObjectDataExtractor во время выполнения
+    /// </summary>
+    public void ForceFindObjectDataExtractor()
+    {
+        FindObjectDataExtractor();
+        
+        if (showObjectMatchingDebugInfo)
+        {
+            Debug.Log($"ClientManager: Принудительный поиск ObjectDataExtractor - {(objectDataExtractor != null ? "НАЙДЕН" : "НЕ НАЙДЕН")}");
+        }
+    }
+    
     // Контекстные меню для тестирования
     [ContextMenu("Запустить таймер включения")]
     private void TestStartTimer()
@@ -825,6 +866,12 @@ public class ClientManager : MonoBehaviour
     private void TestUpdateObjectDataExtractor()
     {
         FindObjectDataExtractor();
+    }
+    
+    [ContextMenu("Принудительно найти ObjectDataExtractor")]
+    private void TestForceFindObjectDataExtractor()
+    {
+        ForceFindObjectDataExtractor();
     }
     
     [ContextMenu("Включить проверку соответствия объектов")]
