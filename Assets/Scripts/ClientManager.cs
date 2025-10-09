@@ -241,28 +241,90 @@ public class ClientManager : MonoBehaviour
         // Получаем extracted data из ObjectDataExtractor
         ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
         
-        // Проверяем соответствие по имени объекта
-        bool nameMatches = destroyedObject.objectName == extractedData.Name;
+        // Удаляем "(Clone)" из имен для корректного сравнения
+        string destroyedNameClean = destroyedObject.objectName.Replace("(Clone)", "").Trim();
+        string extractedNameClean = extractedData.Name.Replace("(Clone)", "").Trim();
         
-        // Проверяем соответствие по редкости (если есть)
+        // Проверяем соответствие по имени объекта
+        bool nameMatches = destroyedNameClean == extractedNameClean;
+        
+        // Проверяем соответствие по редкости
         bool rarityMatches = true;
         if (destroyedObject.hadRandomRarityScript && !string.IsNullOrEmpty(destroyedObject.rarity))
         {
-            // Здесь можно добавить дополнительную логику сравнения редкости
-            // Пока просто проверяем что у обоих объектов есть редкость
-            rarityMatches = !string.IsNullOrEmpty(extractedData.Name); // Упрощенная проверка
+            // Получаем редкость из extracted data
+            RandomRarityOnSpawn extractedRarityScript = extractedData.GameObject?.GetComponent<RandomRarityOnSpawn>();
+            if (extractedRarityScript != null)
+            {
+                string extractedRarity = extractedRarityScript.AssignedRarity.ToString();
+                rarityMatches = destroyedObject.rarity == extractedRarity;
+            }
+            else
+            {
+                rarityMatches = false; // Если у эталона нет редкости, а у удаленного есть
+            }
+        }
+        else
+        {
+            // Если у удаленного объекта нет редкости, проверяем что и у эталона тоже нет
+            RandomRarityOnSpawn extractedRarityScript = extractedData.GameObject?.GetComponent<RandomRarityOnSpawn>();
+            rarityMatches = extractedRarityScript == null;
         }
         
-        bool isMatching = nameMatches && rarityMatches;
+        // Проверяем соответствие по характеристикам (упрощенная проверка для удаленных объектов)
+        bool statsMatch = true;
+        if (destroyedObject.hadRandomRarityScript)
+        {
+            RandomRarityOnSpawn extractedRarityScript = extractedData.GameObject?.GetComponent<RandomRarityOnSpawn>();
+            if (extractedRarityScript != null)
+            {
+                // Для удаленных объектов мы не можем точно сравнить характеристики,
+                // так как у нас есть только имя и редкость в DestroyedObjectInfo
+                // Поэтому считаем что если имя и редкость совпадают, то характеристики тоже совпадают
+                statsMatch = nameMatches && rarityMatches;
+            }
+            else
+            {
+                statsMatch = false;
+            }
+        }
+        
+        // Проверяем режим обмана (deception)
+        bool isDeceptionActive = extractedData.IsDeceptionActive;
+        
+        // Объект считается соответствующим в зависимости от режима
+        bool isMatching;
+        if (isDeceptionActive)
+        {
+            // В режиме обмана проверяем ТОЛЬКО имя
+            isMatching = nameMatches;
+        }
+        else
+        {
+            // В обычном режиме проверяем ВСЕ критерии
+            isMatching = nameMatches && rarityMatches && statsMatch;
+        }
         
         if (showObjectMatchingDebugInfo)
         {
-            Debug.Log($"=== СРАВНЕНИЕ ОБЪЕКТОВ ===");
-            Debug.Log($"Удаленный объект: {destroyedObject.objectName} (редкость: {destroyedObject.rarity})");
-            Debug.Log($"Extracted data: {extractedData.Name}");
-            Debug.Log($"Соответствие по имени: {nameMatches}");
-            Debug.Log($"Соответствие по редкости: {rarityMatches}");
-            Debug.Log($"Общее соответствие: {isMatching}");
+            Debug.Log($"=== СРАВНЕНИЕ УДАЛЕННОГО ОБЪЕКТА ===");
+            Debug.Log($"🎭 Режим обмана (Deception): {(isDeceptionActive ? "✅ АКТИВЕН" : "❌ НЕ АКТИВЕН")}");
+            Debug.Log($"Имя удаленного объекта: '{destroyedObject.objectName}' → '{destroyedNameClean}'");
+            Debug.Log($"Имя эталона: '{extractedData.Name}' → '{extractedNameClean}'");
+            Debug.Log($"Редкость удаленного объекта: {destroyedObject.rarity}");
+            Debug.Log($"✅ Соответствие по имени: {nameMatches}");
+            
+            if (isDeceptionActive)
+            {
+                Debug.Log($"🎭 В режиме обмана проверяется ТОЛЬКО имя объекта");
+            }
+            else
+            {
+                Debug.Log($"✅ Соответствие по редкости: {rarityMatches}");
+                Debug.Log($"✅ Соответствие по характеристикам: {statsMatch}");
+            }
+            
+            Debug.Log($"🎯 ОБЩИЙ РЕЗУЛЬТАТ: {(isMatching ? "✅ СООТВЕТСТВУЕТ" : "❌ НЕ СООТВЕТСТВУЕТ")}");
         }
         
         return isMatching;

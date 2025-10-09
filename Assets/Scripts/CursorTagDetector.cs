@@ -58,6 +58,11 @@ public class CursorTagDetector : MonoBehaviour
     public GameObject destroyParticlePrefab; // Префаб частиц при удалении
     public float particleDuration = 2.0f; // Время до удаления частиц (в секундах)
     
+    [Header("Zone 3 Particle Effects")]
+    public GameObject zone3SuccessParticlePrefab; // Префаб партиклов при успешном удалении правильного объекта в zone 3
+    public GameObject zone3BlockedParticlePrefab; // Префаб партиклов при блокировке неправильного объекта в zone 3
+    public bool useZone3ParticleEffects = true; // Включить партиклы для zone 3
+    
     [Header("PrefabSpawner Integration")]
     public PrefabSpawner prefabSpawner; // Ссылка на PrefabSpawner для уведомлений
     
@@ -203,15 +208,137 @@ public class CursorTagDetector : MonoBehaviour
         // Получаем данные из ObjectDataExtractor
         ObjectDataExtractor.ObjectData extractedData = objectDataExtractor.GetExtractedData();
         
+        // Получаем компонент RandomRarityOnSpawn у проверяемого объекта
+        RandomRarityOnSpawn objRarityScript = obj.GetComponent<RandomRarityOnSpawn>();
+        RandomRarityOnSpawn extractedRarityScript = extractedData.GameObject?.GetComponent<RandomRarityOnSpawn>();
+        
+        // Удаляем "(Clone)" из имени объекта для корректного сравнения
+        string objNameClean = obj.name.Replace("(Clone)", "").Trim();
+        string extractedNameClean = extractedData.Name.Replace("(Clone)", "").Trim();
+        
         // Проверяем соответствие по имени объекта
-        bool nameMatches = obj.name == extractedData.Name;
+        bool nameMatches = objNameClean == extractedNameClean;
+        
+        // Проверяем соответствие по редкости
+        bool rarityMatches = true;
+        if (objRarityScript != null && extractedRarityScript != null)
+        {
+            rarityMatches = objRarityScript.AssignedRarity == extractedRarityScript.AssignedRarity;
+        }
+        else if (objRarityScript != null || extractedRarityScript != null)
+        {
+            // Если у одного объекта есть скрипт редкости, а у другого нет - не совпадают
+            rarityMatches = false;
+        }
+        
+        // Проверяем соответствие по характеристикам
+        bool statsMatch = true;
+        if (objRarityScript != null && extractedRarityScript != null)
+        {
+            statsMatch = CompareObjectStats(objRarityScript, extractedRarityScript);
+        }
+        else if (objRarityScript != null || extractedRarityScript != null)
+        {
+            // Если у одного объекта есть характеристики, а у другого нет - не совпадают
+            statsMatch = false;
+        }
+        
+        // Проверяем режим обмана (deception)
+        bool isDeceptionActive = extractedData.IsDeceptionActive;
+        
+        // Объект считается соответствующим в зависимости от режима
+        bool overallMatch;
+        if (isDeceptionActive)
+        {
+            // В режиме обмана проверяем ТОЛЬКО имя
+            overallMatch = nameMatches;
+        }
+        else
+        {
+            // В обычном режиме проверяем ВСЕ критерии
+            overallMatch = nameMatches && rarityMatches && statsMatch;
+        }
         
         if (showZone3RestrictionDebugInfo)
         {
-            Debug.Log($"CursorTagDetector: Проверка соответствия объекта '{obj.name}' с extracted data '{extractedData.Name}' - {(nameMatches ? "СООТВЕТСТВУЕТ" : "НЕ СООТВЕТСТВУЕТ")}");
+            Debug.Log($"=== ПРОВЕРКА СООТВЕТСТВИЯ ОБЪЕКТА ===");
+            Debug.Log($"🎭 Режим обмана (Deception): {(isDeceptionActive ? "✅ АКТИВЕН" : "❌ НЕ АКТИВЕН")}");
+            Debug.Log($"Имя объекта: '{obj.name}' → '{objNameClean}'");
+            Debug.Log($"Имя эталона: '{extractedData.Name}' → '{extractedNameClean}'");
+            Debug.Log($"✅ Соответствие по имени: {nameMatches}");
+            
+            if (isDeceptionActive)
+            {
+                Debug.Log($"🎭 В режиме обмана проверяется ТОЛЬКО имя объекта");
+            }
+            else
+            {
+                if (objRarityScript != null && extractedRarityScript != null)
+                {
+                    Debug.Log($"Редкость объекта: {objRarityScript.AssignedRarity}");
+                    Debug.Log($"Редкость эталона: {extractedRarityScript.AssignedRarity}");
+                    Debug.Log($"✅ Соответствие по редкости: {rarityMatches}");
+                    
+                    Debug.Log($"✅ Соответствие по характеристикам: {statsMatch}");
+                }
+                else
+                {
+                    Debug.Log($"⚠️ Скрипт редкости: объект={objRarityScript != null}, эталон={extractedRarityScript != null}");
+                }
+            }
+            
+            Debug.Log($"🎯 ОБЩИЙ РЕЗУЛЬТАТ: {(overallMatch ? "✅ СООТВЕТСТВУЕТ" : "❌ НЕ СООТВЕТСТВУЕТ")}");
         }
         
-        return nameMatches;
+        return overallMatch;
+    }
+    
+    /// <summary>
+    /// Сравнивает характеристики двух объектов
+    /// </summary>
+    private bool CompareObjectStats(RandomRarityOnSpawn obj1, RandomRarityOnSpawn obj2)
+    {
+        // Создаем списки характеристик для обоих объектов
+        var stats1 = GetObjectStatsList(obj1);
+        var stats2 = GetObjectStatsList(obj2);
+        
+        // Если количество характеристик разное - не совпадают
+        if (stats1.Count != stats2.Count)
+        {
+            return false;
+        }
+        
+        // Сравниваем каждую характеристику
+        for (int i = 0; i < stats1.Count; i++)
+        {
+            if (stats1[i].stat != stats2[i].stat || stats1[i].value != stats2[i].value)
+            {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /// <summary>
+    /// Получает список характеристик объекта в виде структуры
+    /// </summary>
+    private System.Collections.Generic.List<(string stat, int value)> GetObjectStatsList(RandomRarityOnSpawn rarityScript)
+    {
+        var stats = new System.Collections.Generic.List<(string stat, int value)>();
+        
+        if (!string.IsNullOrEmpty(rarityScript.stat1) && rarityScript.stat1Value > 0)
+            stats.Add((rarityScript.stat1, rarityScript.stat1Value));
+        if (!string.IsNullOrEmpty(rarityScript.stat2) && rarityScript.stat2Value > 0)
+            stats.Add((rarityScript.stat2, rarityScript.stat2Value));
+        if (!string.IsNullOrEmpty(rarityScript.stat3) && rarityScript.stat3Value > 0)
+            stats.Add((rarityScript.stat3, rarityScript.stat3Value));
+        if (!string.IsNullOrEmpty(rarityScript.stat4) && rarityScript.stat4Value > 0)
+            stats.Add((rarityScript.stat4, rarityScript.stat4Value));
+        if (!string.IsNullOrEmpty(rarityScript.stat5) && rarityScript.stat5Value > 0)
+            stats.Add((rarityScript.stat5, rarityScript.stat5Value));
+        
+        return stats;
     }
     
     /// <summary>
@@ -464,6 +591,9 @@ public class CursorTagDetector : MonoBehaviour
                                     Debug.Log($"Zone 3: Объект '{draggedObject.name}' не соответствует extracted data - удаление запрещено");
                                 }
                                 
+                                // Воспроизводим партиклы блокировки неправильного объекта
+                                PlayZone3BlockedParticles(worldPosition);
+                                
                                 // Возвращаем объект на исходную позицию
                                 draggedObject.position = originalPosition;
                                 draggedObject.localScale = originalScale;
@@ -492,6 +622,9 @@ public class CursorTagDetector : MonoBehaviour
                             
                             // Запускаем корутину удаления с задержкой
                             StartCoroutine(DestroyObjectWithDelay(draggedObject.gameObject));
+                            
+                            // Воспроизводим партиклы успешного удаления правильного объекта
+                            PlayZone3SuccessParticles(worldPosition);
                             
                             // Сохраняем имя объекта для лога
                             string objectName = draggedObject.name;
@@ -541,6 +674,16 @@ public class CursorTagDetector : MonoBehaviour
                 {
                     if (draggedObject != null)
                     {
+                        // Проверяем, был ли объект заблокирован из-за ограничений zone 3
+                        bool wasBlockedByZone3Restrictions = false;
+                        if (useDropZone && IsPositionInZone(worldPosition, zone3Center, zone3Size))
+                        {
+                            if (IsClientActive() && useZone3ObjectRestrictions && !IsObjectMatchingExtractedData(draggedObject.gameObject))
+                            {
+                                wasBlockedByZone3Restrictions = true;
+                            }
+                        }
+                        
                         // Возвращаем объект на исходную позицию
                         draggedObject.position = originalPosition;
                         
@@ -553,8 +696,15 @@ public class CursorTagDetector : MonoBehaviour
                             Debug.Log($"Объект {draggedObject.name} возвращен, масштаб восстановлен к исходному: {trueOriginalScale}");
                         }
                         
-                        // Воспроизводим частицы при возврате
-                        PlayDropParticles(draggedObject.position);
+                        // Воспроизводим соответствующие партиклы
+                        if (wasBlockedByZone3Restrictions)
+                        {
+                            PlayZone3BlockedParticles(worldPosition);
+                        }
+                        else
+                        {
+                            PlayDropParticles(draggedObject.position);
+                        }
                         
                         // Уведомляем PrefabSpawner о том, что объект вне drop zone
                         if (prefabSpawner != null)
@@ -742,6 +892,56 @@ public class CursorTagDetector : MonoBehaviour
             
             // Уничтожаем частицы через заданное время
             StartCoroutine(DestroyParticlesAfterDelay(particleInstance));
+        }
+    }
+    
+    // Воспроизводит партиклы при успешном удалении правильного объекта в zone 3
+    void PlayZone3SuccessParticles(Vector3 position)
+    {
+        if (useZone3ParticleEffects && zone3SuccessParticlePrefab != null)
+        {
+            // Создаем экземпляр префаба партиклов в позиции отпускания
+            GameObject particleInstance = Instantiate(zone3SuccessParticlePrefab, position, Quaternion.identity);
+            
+            // Принудительно запускаем партиклы
+            ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
+            foreach (ParticleSystem ps in particleSystems)
+            {
+                ps.Play();
+            }
+            
+            // Уничтожаем партиклы через заданное время
+            StartCoroutine(DestroyParticlesAfterDelay(particleInstance));
+            
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.Log($"Zone 3: Воспроизведены партиклы успешного удаления в позиции {position}");
+            }
+        }
+    }
+    
+    // Воспроизводит партиклы при блокировке неправильного объекта в zone 3
+    void PlayZone3BlockedParticles(Vector3 position)
+    {
+        if (useZone3ParticleEffects && zone3BlockedParticlePrefab != null)
+        {
+            // Создаем экземпляр префаба партиклов в позиции отпускания
+            GameObject particleInstance = Instantiate(zone3BlockedParticlePrefab, position, Quaternion.identity);
+            
+            // Принудительно запускаем партиклы
+            ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
+            foreach (ParticleSystem ps in particleSystems)
+            {
+                ps.Play();
+            }
+            
+            // Уничтожаем партиклы через заданное время
+            StartCoroutine(DestroyParticlesAfterDelay(particleInstance));
+            
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.Log($"Zone 3: Воспроизведены партиклы блокировки в позиции {position}");
+            }
         }
     }
     
@@ -1262,6 +1462,140 @@ public class CursorTagDetector : MonoBehaviour
         else
         {
             Debug.LogWarning("❌ Нет перетаскиваемого объекта для тестирования!");
+        }
+    }
+    
+    [ContextMenu("Тест партиклов Zone 3 - Успех")]
+    private void TestZone3SuccessParticles()
+    {
+        Vector3 testPosition = transform.position;
+        PlayZone3SuccessParticles(testPosition);
+        Debug.Log($"🎉 Тест партиклов успешного удаления в позиции {testPosition}");
+    }
+    
+    [ContextMenu("Тест партиклов Zone 3 - Блокировка")]
+    private void TestZone3BlockedParticles()
+    {
+        Vector3 testPosition = transform.position;
+        PlayZone3BlockedParticles(testPosition);
+        Debug.Log($"🚫 Тест партиклов блокировки в позиции {testPosition}");
+    }
+    
+    [ContextMenu("Тест расширенной проверки соответствия")]
+    private void TestExtendedObjectMatching()
+    {
+        if (draggedObject != null)
+        {
+            bool matches = IsObjectMatchingExtractedData(draggedObject.gameObject);
+            Debug.Log($"🔍 Расширенный тест соответствия объекта '{draggedObject.name}': {(matches ? "✅ СООТВЕТСТВУЕТ" : "❌ НЕ СООТВЕТСТВУЕТ")}");
+            
+            // Показываем детали проверки
+            RandomRarityOnSpawn objScript = draggedObject.GetComponent<RandomRarityOnSpawn>();
+            if (objScript != null)
+            {
+                Debug.Log($"📊 Детали объекта '{draggedObject.name}':");
+                Debug.Log($"   Редкость: {objScript.AssignedRarity}");
+                Debug.Log($"   Характеристики: {GetObjectStatsList(objScript).Count} шт.");
+                var stats = GetObjectStatsList(objScript);
+                for (int i = 0; i < stats.Count; i++)
+                {
+                    Debug.Log($"     {i + 1}. {stats[i].stat} +{stats[i].value}");
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning("❌ Нет перетаскиваемого объекта для тестирования!");
+        }
+    }
+    
+    [ContextMenu("Показать эталонный объект")]
+    private void TestShowReferenceObject()
+    {
+        if (objectDataExtractor != null)
+        {
+            ObjectDataExtractor.ObjectData data = objectDataExtractor.GetExtractedData();
+            Debug.Log($"📋 ЭТАЛОННЫЙ ОБЪЕКТ:");
+            Debug.Log($"   Имя: {data.Name}");
+            Debug.Log($"   🎭 Режим обмана: {(data.IsDeceptionActive ? "✅ АКТИВЕН" : "❌ НЕ АКТИВЕН")}");
+            
+            RandomRarityOnSpawn refScript = data.GameObject?.GetComponent<RandomRarityOnSpawn>();
+            if (refScript != null)
+            {
+                Debug.Log($"   Редкость: {refScript.AssignedRarity}");
+                Debug.Log($"   Характеристики: {GetObjectStatsList(refScript).Count} шт.");
+                var stats = GetObjectStatsList(refScript);
+                for (int i = 0; i < stats.Count; i++)
+                {
+                    Debug.Log($"     {i + 1}. {stats[i].stat} +{stats[i].value}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("   ⚠️ У эталонного объекта нет скрипта редкости!");
+            }
+        }
+        else
+        {
+            Debug.LogError("❌ ObjectDataExtractor не найден!");
+        }
+    }
+    
+    [ContextMenu("Тест режима обмана - Включить")]
+    private void TestEnableDeception()
+    {
+        if (objectDataExtractor != null)
+        {
+            objectDataExtractor.isDeceptionActive = true;
+            Debug.Log("🎭 Режим обмана принудительно ВКЛЮЧЕН!");
+            Debug.Log("Теперь проверяется ТОЛЬКО имя объекта для соответствия");
+        }
+        else
+        {
+            Debug.LogError("❌ ObjectDataExtractor не найден!");
+        }
+    }
+    
+    [ContextMenu("Тест режима обмана - Выключить")]
+    private void TestDisableDeception()
+    {
+        if (objectDataExtractor != null)
+        {
+            objectDataExtractor.isDeceptionActive = false;
+            Debug.Log("🎭 Режим обмана принудительно ВЫКЛЮЧЕН!");
+            Debug.Log("Теперь проверяется имя, редкость И характеристики для соответствия");
+        }
+        else
+        {
+            Debug.LogError("❌ ObjectDataExtractor не найден!");
+        }
+    }
+    
+    [ContextMenu("Показать текущий режим проверки")]
+    private void TestShowCurrentMode()
+    {
+        if (objectDataExtractor != null)
+        {
+            ObjectDataExtractor.ObjectData data = objectDataExtractor.GetExtractedData();
+            bool isDeceptionActive = data.IsDeceptionActive;
+            
+            Debug.Log($"🎭 ТЕКУЩИЙ РЕЖИМ ПРОВЕРКИ:");
+            Debug.Log($"   Режим обмана: {(isDeceptionActive ? "✅ АКТИВЕН" : "❌ НЕ АКТИВЕН")}");
+            
+            if (isDeceptionActive)
+            {
+                Debug.Log($"   📋 Проверяется: ТОЛЬКО имя объекта");
+                Debug.Log($"   ✅ Объект пройдет если: имя совпадает с эталоном");
+            }
+            else
+            {
+                Debug.Log($"   📋 Проверяется: имя + редкость + характеристики");
+                Debug.Log($"   ✅ Объект пройдет если: имя И редкость И характеристики совпадают");
+            }
+        }
+        else
+        {
+            Debug.LogError("❌ ObjectDataExtractor не найден!");
         }
     }
 }

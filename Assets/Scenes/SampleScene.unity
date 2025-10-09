@@ -4016,6 +4016,10 @@ MonoBehaviour:
   dropZone3ScaleMultiplier: 1.8
   useDropZone3Destroy: 1
   destroyDelay: 0.05
+  useZone3ObjectRestrictions: 1
+  objectDataExtractor: {fileID: 709987927}
+  autoFindObjectDataExtractor: 1
+  showZone3RestrictionDebugInfo: 1
   useSoundEffects: 1
   pickupSound: {fileID: 8300000, guid: f0070227df9bab043b26419f5e02bf39, type: 3}
   dropSound: {fileID: 8300000, guid: a25ad2a61fce5c14faa15eba9f0b54b7, type: 3}
@@ -4025,6 +4029,9 @@ MonoBehaviour:
   dropParticlePrefab: {fileID: 8014483469092822653, guid: 89d07ba3951d93347abfac1a1ac405b4, type: 3}
   destroyParticlePrefab: {fileID: 0}
   particleDuration: 0
+  zone3SuccessParticlePrefab: {fileID: 3926078366138820995, guid: 5f003e686d3176d4d932bf54d2f59b88, type: 3}
+  zone3BlockedParticlePrefab: {fileID: 3926078366138820995, guid: d94dd218d346c404a8aac8f1306cfea0, type: 3}
+  useZone3ParticleEffects: 1
   prefabSpawner: {fileID: 1045342279}
   enableZone3Tracking: 1
   showTrackingDebugInfo: 1
