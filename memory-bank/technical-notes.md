@@ -1287,6 +1287,177 @@ public class SomeOtherScript : MonoBehaviour
 
 **Статус:** ✅ **СИСТЕМА ПОЛНОСТЬЮ РЕАЛИЗОВАНА И ПРОТЕСТИРОВАНА**
 
+## Resource Manager System - Система управления ресурсами (2024-12-19)
+
+### 🎯 Архитектура системы управления ресурсами
+
+**Основное назначение:**
+Расширяемая система управления ресурсами для проекта "Port of Thieves" с поддержкой золота и интеграции с TextMeshPro.
+
+### 🏗️ Компоненты системы
+
+**1. Resource.cs - Базовый класс ресурсов:**
+```csharp
+[Serializable]
+public class Resource
+{
+    public string ResourceName { get; }
+    public int CurrentAmount { get; }
+    public int MaxAmount { get; }
+    public bool IsFull { get; }
+    
+    // Методы управления
+    public bool TryAdd(int amount)
+    public bool TryRemove(int amount)
+    public void SetAmount(int amount)
+    public void SetMaxAmount(int newMaxAmount)
+}
+```
+
+**2. ResourceManager.cs - Простой менеджер с фокусом на золоте:**
+- Управление золотом с проверкой границ
+- Интеграция с TextMeshPro для отображения
+- Система событий для уведомлений об изменениях
+- Debug методы для тестирования
+
+**3. ExtendedResourceManager.cs - Расширяемый менеджер:**
+- Динамическое добавление новых типов ресурсов
+- Поддержка множественных ресурсов
+- Гибкая система UI для каждого ресурса
+- Обратная совместимость с ResourceManager
+
+### 📊 API методы
+
+**Основные операции с ресурсами:**
+```csharp
+// Добавление/удаление ресурсов
+bool AddResource(string resourceName, int amount)
+bool RemoveResource(string resourceName, int amount)
+void SetResourceAmount(string resourceName, int amount)
+bool HasEnoughResource(string resourceName, int amount)
+
+// Управление золотом (для обратной совместимости)
+bool AddGold(int amount)
+bool RemoveGold(int amount)
+void SetGold(int amount)
+bool HasEnoughGold(int amount)
+```
+
+**Управление типами ресурсов:**
+```csharp
+// Добавление новых типов ресурсов
+void AddResourceType(string resourceName, int initialAmount, int maxAmount, 
+    TextMeshProUGUI displayText, string displayFormat)
+
+// Получение ресурсов
+Resource GetResource(string resourceName)
+int GetResourceAmount(string resourceName)
+int GetResourceMaxAmount(string resourceName)
+```
+
+**UI управление:**
+```csharp
+// Обновление UI
+void UpdateAllUI()
+void UpdateResourceUI(string resourceName)
+
+// Настройка отображения
+void SetResourceText(string resourceName, TextMeshProUGUI textComponent)
+void SetResourceDisplayFormat(string resourceName, string format)
+```
+
+### 🔄 Система событий
+
+**События для интеграции с другими системами:**
+```csharp
+// Общие события ресурсов
+public static event Action<string, int, int> OnResourceChanged; // resourceName, currentAmount, maxAmount
+
+// Специальные события для золота
+public static event Action<Resource> OnGoldChanged;
+```
+
+**Пример подписки на события:**
+```csharp
+void Start()
+{
+    ResourceManager.OnGoldChanged += OnGoldChanged;
+    ResourceManager.OnResourceChanged += OnResourceChanged;
+}
+
+void OnGoldChanged(Resource gold)
+{
+    Debug.Log($"Gold changed: {gold.CurrentAmount}");
+}
+```
+
+### 🎮 Контекстные меню для тестирования
+
+**ResourceManager:**
+- "Add 100 Gold" - добавить 100 золота
+- "Remove 50 Gold" - удалить 50 золота
+- "Reset Gold" - сбросить золото
+
+**ExtendedResourceManager:**
+- "Add 100 Gold" - добавить 100 золота
+- "Add Wood Resource" - добавить новый тип ресурса "Wood"
+- "Add 50 Wood" - добавить 50 дерева
+
+### 📈 Примеры использования
+
+**Базовое использование (ResourceManager):**
+```csharp
+ResourceManager resourceManager = GetComponent<ResourceManager>();
+
+// Добавить золото
+resourceManager.AddGold(100);
+
+// Проверить наличие золота
+if (resourceManager.HasEnoughGold(25))
+{
+    resourceManager.RemoveGold(25);
+}
+```
+
+**Расширенное использование (ExtendedResourceManager):**
+```csharp
+ExtendedResourceManager resourceManager = GetComponent<ExtendedResourceManager>();
+
+// Добавить новый тип ресурса
+resourceManager.AddResourceType("Wood", 0, 1000, woodTextComponent, "Wood: {0}");
+
+// Работа с любыми ресурсами
+resourceManager.AddResource("Wood", 50);
+resourceManager.RemoveResource("Gold", 25);
+```
+
+### ⚡ Особенности системы
+
+**Автоматическое обновление UI:**
+- UI обновляется автоматически при изменении ресурсов
+- Поддержка кастомных форматов отображения
+- Интеграция с TextMeshPro компонентами
+
+**Проверка границ:**
+- Нельзя уйти в минус или превысить максимум
+- Методы возвращают bool для проверки успешности операций
+- Автоматическое ограничение значений
+
+**Расширяемость:**
+- Легкое добавление новых типов ресурсов
+- Поддержка как через Inspector, так и программно
+- Полная обратная совместимость
+
+### 📋 Документация
+
+**Созданные файлы:**
+- `Assets/Scripts/Resource.cs` - базовый класс ресурсов
+- `Assets/Scripts/ResourceManager.cs` - простой менеджер ресурсов
+- `Assets/Scripts/ExtendedResourceManager.cs` - расширяемый менеджер
+- `Assets/Scripts/ResourceManager_README.md` - полная документация
+
+**Статус:** ✅ **СИСТЕМА ПОЛНОСТЬЮ РЕАЛИЗОВАНА И ГОТОВА К ИСПОЛЬЗОВАНИЮ**
+
 ## Следующие шаги
 
 1. ✅ **Система случайных фраз создана** - ЗАВЕРШЕНО
@@ -1298,6 +1469,7 @@ public class SomeOtherScript : MonoBehaviour
 7. ✅ **Добавление прозрачности** - цвет + прозрачность + заглавные буквы - ЗАВЕРШЕНО
 8. ✅ **Система отслеживания Zone 3** - ЗАВЕРШЕНО
 9. ✅ **Система отслеживания Deception в ClientManager** - ЗАВЕРШЕНО
-10. **Расширение** списка фраз для разных ситуаций
+10. ✅ **Resource Manager System** - ЗАВЕРШЕНО
+11. **Интеграция** Resource Manager с существующими системами игры
 
 

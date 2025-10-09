@@ -29,8 +29,9 @@ public class ClientManager : MonoBehaviour
     
     [Header("Object Matching")]
     [SerializeField] private bool checkObjectMatching = true; // Проверять соответствие удаленного объекта с extracted data
-    [SerializeField] private bool onlyDeactivateOnMatchingObject = true; // Выключать Client только если удаленный объект соответствует extracted data
+    [SerializeField] private bool onlyDeactivateOnMatchingObject = false; // Выключать Client только если удаленный объект соответствует extracted data
     [SerializeField] private bool showObjectMatchingDebugInfo = true; // Показывать отладочную информацию сравнения объектов
+    
     
     [Header("Public Deception State")]
     public bool isDeceptionActive = false; // Публичное поле для отслеживания состояния Deception
