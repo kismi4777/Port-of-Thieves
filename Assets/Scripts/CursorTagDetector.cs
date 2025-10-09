@@ -62,6 +62,12 @@ public class CursorTagDetector : MonoBehaviour
     public GameObject zone3BlockedParticlePrefab; // Префаб партиклов при блокировке неправильного объекта в zone 3
     public bool useZone3ParticleEffects = true; // Включить партиклы для zone 3
     
+    [Header("Zone 3 Sound Effects")]
+    public bool useZone3SoundEffects = true; // Включить звуковые эффекты для zone 3
+    public AudioClip zone3SuccessSound; // Звук при успешном удалении правильного объекта в zone 3
+    public AudioClip zone3BlockedSound; // Звук при блокировке неправильного объекта в zone 3
+    public float zone3SoundVolume = 1.0f; // Громкость звуков zone 3
+    
     [Header("PrefabSpawner Integration")]
     public PrefabSpawner prefabSpawner; // Ссылка на PrefabSpawner для уведомлений
     
@@ -533,9 +539,6 @@ public class CursorTagDetector : MonoBehaviour
         {
             if (isDragging && draggedObject != null)
             {
-                // Воспроизводим звук опускания СРАЗУ при отпускании перетаскиваемого объекта
-                PlayDropSound();
-                
                 // Восстанавливаем исходный масштаб
                 if (useScaleEffect)
                 {
@@ -622,8 +625,8 @@ public class CursorTagDetector : MonoBehaviour
                             // Воспроизводим партиклы успешного удаления правильного объекта
                             PlayZone3SuccessParticles(worldPosition);
                             
-                            // Запускаем корутину удаления с задержкой
-                            StartCoroutine(DestroyObjectWithDelay(draggedObject.gameObject));
+                            // Запускаем корутину удаления с задержкой (БЕЗ звука удаления)
+                            StartCoroutine(DestroyObjectWithDelay(draggedObject.gameObject, false));
                             
                             // Сохраняем имя объекта для лога
                             string objectName = draggedObject.name;
@@ -652,6 +655,12 @@ public class CursorTagDetector : MonoBehaviour
                         isInDropZone2 = false;
                         isInDropZone3 = false;
                         Debug.Log($"Объект {draggedObject.name} помещен в drop zone 1, масштаб восстановлен к исходному: {trueOriginalScale}");
+                    }
+                    
+                    // Воспроизводим звук опускания только для Zone 1 и Zone 2 (НЕ для Zone 3)
+                    if (!IsPositionInDropZone3(worldPosition))
+                    {
+                        PlayDropSound();
                     }
                     
                     // Воспроизводим частицы при успешном отпускании
@@ -874,6 +883,50 @@ public class CursorTagDetector : MonoBehaviour
         }
     }
     
+    // Воспроизводит звук успешного удаления правильного объекта в zone 3
+    void PlayZone3SuccessSound()
+    {
+        if (useZone3SoundEffects && zone3SuccessSound != null && audioSource != null)
+        {
+            // Используем PlayOneShot для более быстрого воспроизведения без задержек
+            audioSource.PlayOneShot(zone3SuccessSound, zone3SoundVolume);
+            
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.Log($"Zone 3: Воспроизведен звук успешного удаления");
+            }
+        }
+        else
+        {
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.LogWarning($"Zone 3: Не удалось воспроизвести звук успешного удаления. useZone3SoundEffects: {useZone3SoundEffects}, zone3SuccessSound: {(zone3SuccessSound != null ? zone3SuccessSound.name : "null")}");
+            }
+        }
+    }
+    
+    // Воспроизводит звук блокировки неправильного объекта в zone 3
+    void PlayZone3BlockedSound()
+    {
+        if (useZone3SoundEffects && zone3BlockedSound != null && audioSource != null)
+        {
+            // Используем PlayOneShot для более быстрого воспроизведения без задержек
+            audioSource.PlayOneShot(zone3BlockedSound, zone3SoundVolume);
+            
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.Log($"Zone 3: Воспроизведен звук блокировки");
+            }
+        }
+        else
+        {
+            if (showZone3RestrictionDebugInfo)
+            {
+                Debug.LogWarning($"Zone 3: Не удалось воспроизвести звук блокировки. useZone3SoundEffects: {useZone3SoundEffects}, zone3BlockedSound: {(zone3BlockedSound != null ? zone3BlockedSound.name : "null")}");
+            }
+        }
+    }
+    
     // Воспроизводит частицы при отпускании объекта
     void PlayDropParticles(Vector3 position)
     {
@@ -901,6 +954,9 @@ public class CursorTagDetector : MonoBehaviour
         {
             // Создаем экземпляр префаба партиклов в позиции отпускания
             GameObject particleInstance = Instantiate(zone3SuccessParticlePrefab, position, Quaternion.identity);
+            
+            // Воспроизводим звук успешного удаления СРАЗУ после создания партиклов
+            PlayZone3SuccessSound();
             
             // Принудительно запускаем партиклы
             ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
@@ -933,6 +989,9 @@ public class CursorTagDetector : MonoBehaviour
         {
             // Создаем экземпляр префаба партиклов в позиции отпускания
             GameObject particleInstance = Instantiate(zone3BlockedParticlePrefab, position, Quaternion.identity);
+            
+            // Воспроизводим звук блокировки СРАЗУ после создания партиклов
+            PlayZone3BlockedSound();
             
             // Принудительно запускаем партиклы
             ParticleSystem[] particleSystems = particleInstance.GetComponentsInChildren<ParticleSystem>();
@@ -980,15 +1039,18 @@ public class CursorTagDetector : MonoBehaviour
     }
     
     // Уничтожает объект с задержкой
-    System.Collections.IEnumerator DestroyObjectWithDelay(GameObject objectToDestroy)
+    System.Collections.IEnumerator DestroyObjectWithDelay(GameObject objectToDestroy, bool playDestroySound = true)
     {
         // Ждем заданное время
         yield return new WaitForSeconds(destroyDelay);
         
         if (objectToDestroy != null)
         {
-            // Воспроизводим звук удаления
-            PlayDestroySound();
+            // Воспроизводим звук удаления только если разрешено
+            if (playDestroySound)
+            {
+                PlayDestroySound();
+            }
             
             // Уничтожаем объект
             Destroy(objectToDestroy);

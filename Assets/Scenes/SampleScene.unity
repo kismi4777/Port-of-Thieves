@@ -4027,11 +4027,14 @@ MonoBehaviour:
   soundVolume: 0.025
   useParticleEffects: 1
   dropParticlePrefab: {fileID: 8014483469092822653, guid: 89d07ba3951d93347abfac1a1ac405b4, type: 3}
-  destroyParticlePrefab: {fileID: 0}
-  particleDuration: 0
+  particleDuration: 2
   zone3SuccessParticlePrefab: {fileID: 3926078366138820995, guid: 5f003e686d3176d4d932bf54d2f59b88, type: 3}
   zone3BlockedParticlePrefab: {fileID: 3926078366138820995, guid: d94dd218d346c404a8aac8f1306cfea0, type: 3}
   useZone3ParticleEffects: 1
+  useZone3SoundEffects: 1
+  zone3SuccessSound: {fileID: 8300000, guid: d60aa31080aa5064086ebba3daf760a4, type: 3}
+  zone3BlockedSound: {fileID: 8300000, guid: 53eb0835ac26d684e9b8d1e11a85c8b1, type: 3}
+  zone3SoundVolume: 1
   prefabSpawner: {fileID: 1045342279}
   enableZone3Tracking: 1
   showTrackingDebugInfo: 1
