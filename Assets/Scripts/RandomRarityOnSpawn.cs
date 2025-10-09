@@ -68,6 +68,9 @@ public class RandomRarityOnSpawn : MonoBehaviour
 	public int stat4Value = 0;
 	public int stat5Value = 0;
 
+	[Header("Цена предмета")]
+	public int gold = 0;
+
 	[SerializeField]
 	private Color assignedColor;
 
@@ -108,6 +111,7 @@ public class RandomRarityOnSpawn : MonoBehaviour
 			colors.Clear();
 			colors.Add(assignedColor);
 			AssignCharacteristicsForRarity();
+			CalculateGoldPrice();
 			return;
 		}
 
@@ -123,6 +127,7 @@ public class RandomRarityOnSpawn : MonoBehaviour
 				colors.Clear();
 				colors.Add(assignedColor);
 				AssignCharacteristicsForRarity();
+				CalculateGoldPrice();
 				return;
 			}
 		}
@@ -132,6 +137,7 @@ public class RandomRarityOnSpawn : MonoBehaviour
 		colors.Clear();
 		colors.Add(assignedColor);
 		AssignCharacteristicsForRarity();
+		CalculateGoldPrice();
 	}
 
 
@@ -218,6 +224,56 @@ public class RandomRarityOnSpawn : MonoBehaviour
 		
 		int value = Mathf.RoundToInt(randomFloat * (maxValue - 1)) + 1; // 1..maxValue
 		return value;
+	}
+
+	private void CalculateGoldPrice()
+	{
+		// Базовая цена по редкости
+		int basePrice = 0;
+		switch (assignedRarity)
+		{
+			case Rarity.Обычный: basePrice = 10; break;
+			case Rarity.Необычный: basePrice = 25; break;
+			case Rarity.Редкий: basePrice = 50; break;
+			case Rarity.Эпический: basePrice = 100; break;
+			case Rarity.Легендарный: basePrice = 250; break;
+			case Rarity.Мифический: basePrice = 500; break;
+		}
+
+		// Бонус за количество характеристик
+		int characteristicsCount = 0;
+		if (!string.IsNullOrEmpty(stat1)) characteristicsCount++;
+		if (!string.IsNullOrEmpty(stat2)) characteristicsCount++;
+		if (!string.IsNullOrEmpty(stat3)) characteristicsCount++;
+		if (!string.IsNullOrEmpty(stat4)) characteristicsCount++;
+		if (!string.IsNullOrEmpty(stat5)) characteristicsCount++;
+
+		int characteristicsBonus = characteristicsCount * 5;
+
+		// Бонус за значения характеристик
+		int valuesBonus = 0;
+		valuesBonus += stat1Value;
+		valuesBonus += stat2Value;
+		valuesBonus += stat3Value;
+		valuesBonus += stat4Value;
+		valuesBonus += stat5Value;
+
+		// Множитель редкости для значений характеристик
+		float rarityMultiplier = 1f;
+		switch (assignedRarity)
+		{
+			case Rarity.Обычный: rarityMultiplier = 0.5f; break;
+			case Rarity.Необычный: rarityMultiplier = 0.7f; break;
+			case Rarity.Редкий: rarityMultiplier = 1f; break;
+			case Rarity.Эпический: rarityMultiplier = 1.3f; break;
+			case Rarity.Легендарный: rarityMultiplier = 1.6f; break;
+			case Rarity.Мифический: rarityMultiplier = 2f; break;
+		}
+
+		valuesBonus = Mathf.RoundToInt(valuesBonus * rarityMultiplier);
+
+		// Итоговая цена
+		gold = basePrice + characteristicsBonus + valuesBonus;
 	}
 }
 
